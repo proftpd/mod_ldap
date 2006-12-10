@@ -1,38 +1,68 @@
+v2.5:
+* Authenticated bind support added. mod_ldap now fetches all user information
+  except for userPassword as the DN specified in LDAPDNInfo and then re-binds
+  to the LDAP server as the connecting user with the user-supplied password.
+  If the bind succeeds, the user is allowed to log in. This also has the
+  added advantage of allowing mod_ldap to support any password encryption
+  scheme that your LDAP server supports. Also, a privileged DN is no longer
+  needed to read the userPassword attribute from the LDAP server.
+* Realized I wasn't checking the return value of find_config() for NULL
+  values, this would cause ProFTPD to segfault if certain config file
+  entries were not present.
+* Removed debugging code that might contain NULL values; passing a NULL
+  value to printf() and friends under Solaris causes a segfault.
+* Miscellaneous cleanups, code neatening.
+
 v2.0:
-* config file syntax revamped:
+* Config file syntax revamped:
    LDAPServer            localhost
    LDAPDNInfo            cn=your-dn,dc=horde,dc=net dnpass
    LDAPQueryTimeout      5
-   LDAPDoAuth            on "dc=horde,dc=net"
-   LDAPDoUIDLookups      on "dc=horde,dc=net"
-   LDAPDoGIDLookups      on "dc=horde,dc=net"
+   LDAPDoAuth            on "dc=users,dc=horde,dc=net"
+   LDAPDoUIDLookups      on "dc=users,dc=horde,dc=net"
+   LDAPDoGIDLookups      on "dc=groups,dc=horde,dc=net"
    LDAPDefaultUID        35000
    LDAPDefaultGID        1000
    LDAPNegativeCache     on
    LDAPHomedirOnDemand   on
    LDAPDefaultAuthScheme clear
-* query timeout implemented
-* clear password "encryption" scheme implemented
-* group lookups
-* separate prefixes for user and group lookups
-* can turn on/off user/group lookups independently of each other
-* default [ug]ids. say you want to have a web-toaster type of deal, with
-  all users having the same [ug]ids. just don't put [ug]idNumber attrs 
-  in your ldap db for those users, and set either of these two config
-  directives. any user that doesn't have a [ug]id in the ldap database  
-  will have that info filled in with the default [ug]id.
-* allowedServices attr: (i broke with objectclass here, couldn't find
-  something that seemed to fit this.) comma-separated list of services to 
-  allow for this particular user. say you want to enable ftp access for
-  a user, but not www service. set the allowedServices attr for that  
-  particular user to "FTP" and www service will be denied. basically, 
-  if the string FTP is listed in this attr, ftp access will be allowed.  
-* query timeout config file directive added
-* you can have alternate ldap servers; just specify LDAPServer "host1
-  host2"; thanks to Peter Deacon <peterd@iea-software.com> for pointing this
-  out.
-* clear authentication scheme. some ldap servers support {clear} for
-  no password encryption.
+* Configurable LDAP query timeout [Peter Deacon <peterd@iea-software.com>]
+* Cleartext password "encryption" scheme ("{clear}mypass")
+* UID-to-name and GID-to-name lookups in directory listings
+* Separate prefixes for user and group lookups
+* Can turn on/off UID-to-name and GID-to-name lookups independently
+* Default [UG]IDs. Say you want to have a web-toaster type of deal, with
+  all users having the same [UG]IDs. Just don't put [ug]idNumber attrs in
+  your LDAP database for those users, and set these configuration
+  directives. Any user that doesn't have a [UG]ID in the LDAP database will
+  have that info filled in with the default [UG]ID.
+* mod_ldap is now able to function in a pure virtual-user environment;
+  please note, however, that the loginShell LDAP attr still must be a
+  valid shell. You can turn this check off by saying RequireValidShell off
+  in your proftpd.conf
+* allowedServices attr: (I broke with objectclass here, couldn't find
+  something that seemed to fit this.) This attribute contains a
+  comma-deliminated list of services to allow this particular user.  The
+  string "FTP" corresponds to FTP service. If no allowedServices attr is
+  present, all services will be allowed.
+* You can have alternate LDAP servers; just specify LDAPServer "host1
+  host2"; [Peter Deacon <peterd@iea-software.com>]
+* LDAPHomedirOnDemand to automatically create home directories in a
+  virtual-user environment. [patch: Bert Vermeulen <bert@be.easynet.net>]
+* LDAPDefaultAuthScheme to select the authentication scheme to use when
+  no {prefix} is present in a user's userPassword LDAP attr.
+  [patch: Bert Vermeulen <bert@be.easynet.net>]
+* Virtual hosting support may or may not work okay; theoretically, I think
+  adding LDAP configuration directives to a <VirtualHost> block will work,
+  but this hasn't been tested.
+
+New Tested Platforms:
+
+* Solaris 2.6 with Netscape Directory Server and the Mozilla LDAP C SDK,
+  available at http://www.mozilla.org/directory/csdk.html.
+  Peter Fabian <fabian@staff.matavnet.hu>
+* Solaris 7 with gcc 2.95.1 and OpenLDAP 1.2.7
+  Ralf Kruedewagen <Ralf.Kruedewagen@meocom.de>
 
 v1.2:
 * made the variables for the config entries static

@@ -1,0 +1,34 @@
+--- Configuration.html.orig	Mon Jan 17 21:07:06 2000
++++ Configuration.html	Sat Feb  5 13:56:42 2000
+@@ -64,6 +64,7 @@
+   <li><a href="#IdentLookups">IdentLookups</a></li>
+   <li><a href="#IgnoreHidden">IgnoreHidden</a></li>
+   <li><a href="#Limit">&lt;Limit&gt;</a></li>
++  <li><a href="#LDAPAuthBinds">LDAPAuthBinds
+   <li><a href="#LDAPDefaultAuthScheme">LDAPDefaultAuthScheme
+   <li><a href="#LDAPDefaultGID">LDAPDefaultGID
+   <li><a href="#LDAPDefaultUID">LDAPDefaultUID
+@@ -1260,6 +1261,23 @@
+   directory, they cannot be used to override the file permissions inherent to 
+   the base operating/file system.</p>
+ <p><strong>See Also:</strong> <a href="reference.html#IgnoreHidden">IgnoreHidden</a></p>
++<hr>
++<h2><a name="LDAPAuthBinds"></a></h2>
++<p><strong>Syntax:</strong> LDAPAuthBinds <em>on|off</em><br>
++  <strong>Default:</strong> <code>LDAPAuthBinds off</code><br>
++  <strong>Context:</strong> server config, &lt;VirtualHost&gt;, &lt;Global&gt;<br>
++  <strong>Compatibility:</strong> 1.2.0pre10 w/mod_ldap v2.5 and later</p>
++<p>Specifies whether to use authenticated binds. Normally, a privileged
++   LDAP DN will be used to bind to the LDAP server to obtain user
++   information, including the userPassword attribute. If
++   <code>LDAPAuthBinds</code> is set to <em>on</em>, the DN specified
++   by <code>LDAPDNInfo</code> will be used to fetch all user information
++   except the userPassword attribute. Then, mod_ldap will bind to the LDAP
++   server as the user who is logging in via FTP with the user-supplied
++   password. If this bind succeeds, the user is considered authenticated
++   and is allowed to log in. This method of LDAP authentication has the
++   added benefit of supporting any password encryption scheme that your
++   LDAP server supports.
+ <hr>
+ <h2><a name="LDAPDefaultAuthScheme"></a></h2>
+ <p><strong>Syntax:</strong> LDAPDefaultAuthScheme <em>crypt|clear</em><br>
