@@ -1,6 +1,6 @@
 /*
  * mod_ldap - LDAP password lookup module for ProFTPD
- * Copyright (c) 1999, 2000-3, John Morrissey <jwm@horde.net>
+ * Copyright (c) 1999, 2000-5, John Morrissey <jwm@horde.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,12 @@
  */
 
 /*
- * mod_ldap v2.8.14
+ * mod_ldap v2.8.16
  *
  * Thanks for patches go to (in alphabetical order):
  *
  * Peter Fabian (fabian at staff dot matavnet dot hu) - LDAPAuthBinds
+ * Alexandre Francois (alexandre-francois at voila dot fr) - LDAPAliasDereference
  * Marek Gradzki (mgradzki at ost dot net dot pl) - LDAPProtocolVersion
  * Pierrick Hascoet (pierrick at alias dot fr) - OpenSSL password hash support
  * Florian Lohoff (flo at rfc822 dot org) - LDAPForceDefault[UG]ID code
@@ -47,7 +48,7 @@
  *                                                   LDAPDefaultAuthScheme
  *
  *
- * $Id: mod_ldap.c,v 1.36 2004/10/09 01:16:04 jwm Exp $
+ * $Id: mod_ldap.c,v 1.39 2005/07/03 18:52:00 castaglia Exp $
  * $Libraries: -lldap -llber$
  */
 
@@ -73,7 +74,7 @@
 #include "conf.h"
 #include "privs.h"
 
-#define MOD_LDAP_VERSION	"mod_ldap/2.8.14"
+#define MOD_LDAP_VERSION	"mod_ldap/2.8.16"
 
 #if PROFTPD_VERSION_NUMBER < 0x0001021002
 # error "mod_ldap " MOD_LDAP_VERSION " requires ProFTPD 1.2.10rc2 or later"
@@ -148,6 +149,7 @@ static int ldap_doauth = 0, ldap_douid = 0, ldap_dogid = 0, ldap_doquota = 0,
            ldap_querytimeout = 0, ldap_genhdir = 0, ldap_genhdir_prefix_nouname = 0,
            ldap_forcedefaultuid = 0, ldap_forcedefaultgid = 0,
            ldap_forcegenhdir = 0, ldap_protocol_version = 3,
+           ldap_dereference = LDAP_DEREF_NEVER,
            ldap_search_scope = LDAP_SCOPE_SUBTREE;
 static struct timeval ldap_querytimeout_tp;
 
@@ -190,6 +192,18 @@ pr_ldap_set_sizelimit(LDAP *limit_ld, int limit)
 }
 
 static void
+pr_ldap_set_dereference(LDAP *deref_ld, int derefopt)
+{
+#ifdef LDAP_OPT_DEREF
+  int ret;
+  if ((ret = ldap_set_option(ld, LDAP_OPT_DEREF, (void *)&derefopt)) != LDAP_OPT_SUCCESS)
+    pr_log_pri(PR_LOG_ERR, "mod_ldap: pr_ldap_set_dereference(): ldap_set_option() unable to set dereference to %d: %s", derefopt, ldap_err2string(ret));
+#else
+  deref_ld->ld_deref = derefopt;
+#endif
+}
+
+static void
 pr_ldap_unbind(void)
 {
   int ret;
@@ -206,14 +220,14 @@ pr_ldap_unbind(void)
 static int
 pr_ldap_connect(LDAP **conn_ld, int bind)
 {
-  int ret;
+  int ret, version;
 
   if ((*conn_ld = ldap_init(ldap_server, LDAP_PORT)) == NULL) {
     pr_log_pri(PR_LOG_ERR, "mod_ldap: pr_ldap_connect(): ldap_init() to %s failed: %s", ldap_server, strerror(errno));
     return -1;
   }
 
-  int version = -1;
+  version = -1;
   switch (ldap_protocol_version) {
     case 2:
       version = LDAP_VERSION2;
@@ -244,13 +258,14 @@ pr_ldap_connect(LDAP **conn_ld, int bind)
 #endif /* USE_LDAP_TLS */
 
   if (bind == TRUE) {
-    if ((ret = ldap_simple_bind_s(*conn_ld, ldap_dn, ldap_dnpass) != LDAP_SUCCESS)) {
+    if ((ret = ldap_simple_bind_s(*conn_ld, ldap_dn, ldap_dnpass)) != LDAP_SUCCESS) {
       pr_log_pri(PR_LOG_ERR, "mod_ldap: pr_ldap_connect(): ldap_simple_bind() as %s failed: %s", ldap_dn, ldap_err2string(ret));
       return -1;
     }
   }
 
   pr_ldap_set_sizelimit(*conn_ld, 2);
+  pr_ldap_set_dereference(*conn_ld, ldap_dereference);
 
   ldap_querytimeout_tp.tv_sec = (ldap_querytimeout > 0 ? ldap_querytimeout : 5);
   ldap_querytimeout_tp.tv_usec = 0;
@@ -266,6 +281,9 @@ pr_ldap_generate_filter(pool *p, char *template, const char *entity)
 
   pos = template;
   while ((pos = strstr(pos + 2, "%v")) != NULL)
+    ++num_escapes;
+  pos = template;
+  while ((pos = strstr(pos + 2, "%u")) != NULL)
     ++num_escapes;
 
   /* -2 for the %v, +1 for the NULL */
@@ -995,7 +1013,7 @@ handle_ldap_getgroups(cmd_rec *cmd)
       continue;
     }
 
-    if (strtoul(gidNumber[0], (char **)NULL, 10) != pw->pw_gid) {
+    if (!pw || strtoul(gidNumber[0], (char **)NULL, 10) != pw->pw_gid) {
       *((gid_t *) push_array(gids))   = strtoul(gidNumber[0], (char **)NULL, 10);
       *((char **) push_array(groups)) = pstrdup(session.pool, cn[0]);
     }
@@ -1066,6 +1084,7 @@ handle_ldap_is_auth(cmd_rec *cmd)
     return ERROR_INT(cmd, PR_AUTH_BADPWD);
   }
 
+  session.auth_mech = "mod_ldap.c";
   return HANDLED(cmd);
 }
 
@@ -1126,7 +1145,7 @@ handle_ldap_check(cmd_rec *cmd)
       return DECLINED(cmd);
     }
 
-    if ((ret = ldap_simple_bind_s(ld_auth, ldap_authbind_dn, cmd->argv[2]) != LDAP_SUCCESS)) {
+    if ((ret = ldap_simple_bind_s(ld_auth, ldap_authbind_dn, cmd->argv[2])) != LDAP_SUCCESS) {
       if (ret != LDAP_INVALID_CREDENTIALS)
         pr_log_pri(PR_LOG_ERR, "mod_ldap: handle_ldap_check(): pr_ldap_connect() failed: %s", ldap_err2string(ret));
       ldap_unbind(ld_auth);
@@ -1134,6 +1153,7 @@ handle_ldap_check(cmd_rec *cmd)
     }
 
     ldap_unbind(ld_auth);
+    session.auth_mech = "mod_ldap.c";
     return HANDLED(cmd);
   }
 
@@ -1203,6 +1223,7 @@ handle_ldap_check(cmd_rec *cmd)
     return DECLINED(cmd);
 #endif /* HAVE_OPENSSL */
 
+  session.auth_mech = "mod_ldap.c";
   return HANDLED(cmd);
 }
 
@@ -1363,6 +1384,29 @@ set_ldap_searchscope(cmd_rec *cmd)
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
   add_config_param_str("LDAPSearchScope", 1, cmd->argv[1]);
+  return HANDLED(cmd);
+}
+
+MODRET
+set_ldap_dereference(cmd_rec *cmd)
+{
+  int value;
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
+
+  if (strcasecmp(cmd->argv[1], "never") == 0) {
+    value = LDAP_DEREF_NEVER;
+  } else if (strcasecmp(cmd->argv[1], "search") == 0) {
+    value = LDAP_DEREF_SEARCHING;
+  } else if (strcasecmp(cmd->argv[1], "find") == 0) {
+    value = LDAP_DEREF_FINDING;
+  } else if (strcasecmp(cmd->argv[1], "always") == 0) {
+    value = LDAP_DEREF_ALWAYS;
+  } else {
+    CONF_ERROR(cmd, "LDAPAliasDereference: expected a valid dereference (never, search, find, always).");
+  }
+
+  add_config_param("LDAPAliasDereference", 1, (void *)value);
   return HANDLED(cmd);
 }
 
@@ -1658,7 +1702,7 @@ set_ldap_attr(cmd_rec *cmd)
     CONF_ERROR(cmd, "LDAPAttr: unknown attribute name.");
   }
 
-  add_config_param("LDAPAttr", 2, cmd->argv[1], cmd->argv[2]);
+  add_config_param_str("LDAPAttr", 2, cmd->argv[1], cmd->argv[2]);
   return HANDLED(cmd);
 }
 
@@ -1687,6 +1731,11 @@ ldap_getconf(void)
   if (scope && *scope)
     if (strcasecmp(scope, "onelevel") == 0)
       ldap_search_scope = LDAP_SCOPE_ONELEVEL;
+  
+  ldap_dereference = get_param_int(main_server->conf, "LDAPAliasDereference", FALSE);
+  if (ldap_dereference == -1) {
+    ldap_dereference = LDAP_DEREF_NEVER;
+  }
 
   if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPDoAuth", FALSE)) != NULL) {
     if ( (int)c->argv[0] > 0) {
@@ -1786,23 +1835,23 @@ ldap_getconf(void)
   if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPAttr", FALSE)) != NULL) {
     do {
       if (strcasecmp(c->argv[0], "uid") == 0)
-        ldap_attr_uid = c->argv[1];
+        ldap_attr_uid = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "uidNumber") == 0)
-        ldap_attr_uidnumber = c->argv[1];
+        ldap_attr_uidnumber = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "gidNumber") == 0)
-        ldap_attr_gidnumber = c->argv[1];
+        ldap_attr_gidnumber = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "homeDirectory") == 0)
-        ldap_attr_homedirectory = c->argv[1];
+        ldap_attr_homedirectory = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "userPassword") == 0)
-        ldap_attr_userpassword = c->argv[1];
+        ldap_attr_userpassword = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "loginShell") == 0)
-        ldap_attr_loginshell = c->argv[1];
+        ldap_attr_loginshell = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "cn") == 0)
-        ldap_attr_cn = c->argv[1];
+        ldap_attr_cn = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "memberUid") == 0)
-        ldap_attr_memberuid = c->argv[1];
+        ldap_attr_memberuid = pstrdup(session.pool, c->argv[1]);
       else if (strcasecmp(c->argv[0], "ftpQuota") == 0)
-        ldap_attr_ftpquota = c->argv[1];
+        ldap_attr_ftpquota = pstrdup(session.pool, c->argv[1]);
     } while ((c = find_config_next(c, c->next, CONF_PARAM, "LDAPAttr", FALSE)));
   }
 
@@ -1815,6 +1864,7 @@ static conftable ldap_config[] = {
   { "LDAPAuthBinds",                       set_ldap_authbinds,            NULL },
   { "LDAPQueryTimeout",                    set_ldap_querytimeout,         NULL },
   { "LDAPSearchScope",                     set_ldap_searchscope,          NULL },
+  { "LDAPAliasDereference",                set_ldap_dereference,          NULL },
   { "LDAPNegativeCache",                   set_ldap_negcache,             NULL },
   { "LDAPDoAuth",                          set_ldap_doauth,               NULL },
   { "LDAPDoUIDLookups",                    set_ldap_douid,                NULL },

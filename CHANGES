@@ -1,9 +1,19 @@
-v2.8.15:
-* Fix parenthesizing in connection code.
+v2.8.16:
+* Add 'LDAPAliasDereference never|search|find|always' directive, which
+  defaults to never. This default is compatible with previous versions,
+  which did not support alias dereferencing.
+* Fix LDAPAttr support when more than one LDAPAttr directive is used.
+* Sync with ProFTPD API: set session.auth_mech to indicate that we've
+  successfully authenticated the user.
 * Eliminate segfaults when group information for an LDAP user is available
   from other sources (such as mod_auth_unix). Thanks to Erick Briere
   <Erick.Briere@afp.com>.
-* Fix LDAPAttr support when more than one LDAPAttr directive is used.
+* Make sure to count %u escapes as well as %v escapes when determining
+  filter length.
+* Fix parenthesizing in connection code.
+
+v2.8.15:
+* Erroneous release; contained 2.8.14 by mistake.
 
 v2.8.14:
 * Fix authentication when LDAPAuthBinds is enabled, which broke in 2.8.13.
