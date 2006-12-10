@@ -1,0 +1,14 @@
+v1.1:
+    * Added $Libraries$ directive to mod_ldap so the module is now entirely
+      self-contained.
+    * Changed one reference to sprintf() to snprintf() and changed uidstr
+      in p_getpwuid() to have a length of BUFSIZ.
+    * Added config option (LDAPNegativeCache) to turn LDAP negative caching
+      on and off. The default is off (don't do LDAP negative caching).
+    * Added entries to doc/Configuration.html for all the LDAP configuration
+      directives.
+    * MacGyver added mod_ldap to the ProFTPD CVS tree; proftpd-ldap-1.1
+      is now in sync with ProFTPD CVS.
+
+v1.0:
+    * Initial release of proftpd-ldap
