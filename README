@@ -1,5 +1,5 @@
-mod_ldap v2.5.1
-===============
+mod_ldap v2.6
+=============
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
@@ -20,26 +20,38 @@ Sections:
 1. How do I set up mod_ldap?
 ============================
 
-Currently, mod_ldap has only been heavily tested with recent versions of
-OpenLDAP-stable, but has been reported to work with Netscape Directory
-Server without any modification.
+I've only tested mod_ldap with recent versions of OpenLDAP-stable, but
+others are using an unmodified mod_ldap with Netscape Directory Server (on
+Solaris) and the IBM SecureWay LDAP server (on AIX).
 
-1. Add the following schema to your slapd.oc.conf (if it's not already
-   there) and restart slapd:
+1. Add the following schema to your slapd.oc.conf (or equivalent) and
+   restart your LDAP server:
 
 objectclass posixAccount
-        requires
-                objectclass,
-                cn,
-                uid,
-                uidNumber,
-                gidNumber,
-                homeDirectory
-        allows
-                userPassword,
-                loginShell,
-                gecos,
-                description
+    requires
+        objectclass,
+        cn,
+        uid,
+        uidNumber,
+        gidNumber,
+        homeDirectory
+    allows
+        userPassword,
+        loginShell,
+        gecos,
+        description
+
+If you plan on using mod_ldap for group lookups, also add the following
+schema.
+
+objectclass posixGroup
+    requires
+        gidNumber
+    allows
+        userPassword,
+        memberUid,
+        description
+
 
 2. Create an ldif file and add it to your LDAP server by saying: ldapadd -D
    your-root-dn -w your-root-dn-password < ldif-file
@@ -65,13 +77,13 @@ LDAPServer            localhost
 LDAPDNInfo            cn=your-dn,dc=horde,dc=net dnpass
 LDAPDoAuth            on "dc=users,dc=horde,dc=net"
 
-=======
-2. ToDo
-=======
+========
+2. To-Do
+========
 
+* Runtime specification of an LDAP search filter - this is in my latest
+  development branch; if you'd like a copy, just ask.
 * different log levels in mod_ldap to log varying debug info
-* config file directive to not even look up [ug]id attrs if we're using
-  a default [ug]id
 * perror()-like error reporting to improve error messages
 * shadowAccount objectclass stuff - inactive, expiration, etc.
 
@@ -83,8 +95,12 @@ LDAPDoAuth            on "dc=users,dc=horde,dc=net"
 * Krzysztof Dabrowski <brush@pol.pl> for some big virtual-user ideas
 * Peter Deacon <peterd@iea-software.com> for ideas
 * Peter Fabian <fabian@staff.matavnet.hu> for ideas and a tested platform
+* Pierrick Hascoet <pierrick@alias.fr> for implementing OpenSSL password
+  hash support
 * Ralf Kruedewagen <Ralf.Kruedewagen@meocom.de> for a tested platform
 * Scott Murphy <smurphy@berbee.com> for a trouble report
+* Miguel Barreiro Paz <mbpaz@edu.aytolacoruna.es> for a supported platform
+  and new supported LDAP server
 * Bert Vermeulen <bert@be.easynet.net> for patches
 * Everyone else who has sent feedback on mod_ldap
 

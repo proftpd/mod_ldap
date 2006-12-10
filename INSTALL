@@ -6,15 +6,14 @@ cd proftpd-version
 ./configure --with-modules=mod_ldap
 make
 make install
-Add the contents of posixAccount-objectclass and
-    posixGroup-objectclass files to your slapd.oc.conf.
-The 'ldif' file contains a sample ldif. Modify it to your
-    liking and say ldapadd -D your-root-dn -w
-    your-root-dn-password < ldif
+Add the contents of posixAccount-objectclass to your slapd.oc.conf (or
+    equivalent) and restart your LDAP server. If you plan on using mod_ldap
+    for group lookups, also add the contents of posixGroup-objectclass.
+The 'ldif' file contains a sample ldif. Modify it to your liking and say
+    ldapadd -D your-root-dn -w your-root-dn-password < ldif
 
-If you wish to use a newer version of mod_ldap that is not yet included
-with a release version of ProFTPD, simply download the file mod_ldap.c,
-say:
+If you wish to use a newer version of mod_ldap that is not yet included with
+a release version of ProFTPD, simply download the file mod_ldap.c, say:
 
 cp -f mod_ldap.c proftpd-version/contrib
 

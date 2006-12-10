@@ -1,3 +1,15 @@
+v2.6:
+* HomedirOnDemandSuffix - create an additional subdirectory in a user's home
+  directory (/home/user/anotherdirectory) on demand
+* Minor group fixes/cleanups - supplementary groups now work properly
+* Password {scheme}s are now treated in a case-insensitive manner.
+* Password-hash support for any crypto method OpenSSL supports
+  To enable extended OpenSSL password hash support, edit mod_ldap.c and
+  uncomment #define HAVE_OPENSSL. You'll also need to edit Make.rules to
+  link against OpenSSL. Further details are provided in mod_ldap.c.
+* Runtime search scope selection; one-level or subtree searches can be
+  selected from proftpd.conf.
+
 v2.5.2:
 * Fixed a bug that would allow unauthorized users to log in when mod_ldap
   is used with other authentication modules and LDAPAuthBinds is set to on.

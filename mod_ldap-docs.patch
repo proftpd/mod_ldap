@@ -1,34 +1,52 @@
---- Configuration.html.orig	Mon Jan 17 21:07:06 2000
-+++ Configuration.html	Sat Feb  5 13:56:42 2000
-@@ -64,6 +64,7 @@
-   <li><a href="#IdentLookups">IdentLookups</a></li>
-   <li><a href="#IgnoreHidden">IgnoreHidden</a></li>
-   <li><a href="#Limit">&lt;Limit&gt;</a></li>
-+  <li><a href="#LDAPAuthBinds">LDAPAuthBinds
-   <li><a href="#LDAPDefaultAuthScheme">LDAPDefaultAuthScheme
-   <li><a href="#LDAPDefaultGID">LDAPDefaultGID
-   <li><a href="#LDAPDefaultUID">LDAPDefaultUID
-@@ -1260,6 +1261,23 @@
-   directory, they cannot be used to override the file permissions inherent to 
-   the base operating/file system.</p>
- <p><strong>See Also:</strong> <a href="reference.html#IgnoreHidden">IgnoreHidden</a></p>
-+<hr>
-+<h2><a name="LDAPAuthBinds"></a></h2>
-+<p><strong>Syntax:</strong> LDAPAuthBinds <em>on|off</em><br>
-+  <strong>Default:</strong> <code>LDAPAuthBinds off</code><br>
-+  <strong>Context:</strong> server config, &lt;VirtualHost&gt;, &lt;Global&gt;<br>
-+  <strong>Compatibility:</strong> 1.2.0pre10 w/mod_ldap v2.5 and later</p>
-+<p>Specifies whether to use authenticated binds. Normally, a privileged
-+   LDAP DN will be used to bind to the LDAP server to obtain user
-+   information, including the userPassword attribute. If
-+   <code>LDAPAuthBinds</code> is set to <em>on</em>, the DN specified
-+   by <code>LDAPDNInfo</code> will be used to fetch all user information
-+   except the userPassword attribute. Then, mod_ldap will bind to the LDAP
-+   server as the user who is logging in via FTP with the user-supplied
-+   password. If this bind succeeds, the user is considered authenticated
-+   and is allowed to log in. This method of LDAP authentication has the
-+   added benefit of supporting any password encryption scheme that your
-+   LDAP server supports.
+--- Configuration.html.orig	Sat May 27 17:42:26 2000
++++ Configuration.html	Sat May 27 17:55:33 2000
+@@ -72,8 +72,10 @@
+   <li><a href="#LDAPDoUIDLookups">LDAPDoUIDLookups
+   <li><a href="#LDAPDoGIDLookups">LDAPDoGIDLookups
+   <li><a href="#LDAPHomedirOnDemand">LDAPHomedirOnDemand
++  <li><a href="#LDAPHomedirOnDemandSuffix">LDAPHomedirOnDemandSuffix
+   <li><a href="#LDAPNegativeCache">LDAPNegativeCache
+   <li><a href="#LDAPQueryTimeout">LDAPQueryTimeout
++  <li><a href="#LDAPSearchScope">LDAPSearchScope
+   <li><a href="#LDAPServer">LDAPServer
+   <li><a href="#LogFormat">LogFormat</a></li>
+   <li><a href="#LoginPasswordPrompt">LoginPasswordPrompt</a></li>
+@@ -1341,6 +1343,20 @@
+    user and group that ProFTPD is running as (see the <a href="#User">User</a>
+    and <a href="#Group">Group</a> configuration directives).
  <hr>
- <h2><a name="LDAPDefaultAuthScheme"></a></h2>
- <p><strong>Syntax:</strong> LDAPDefaultAuthScheme <em>crypt|clear</em><br>
++<h2><a name="LDAPHomedirOnDemandSuffix"></a></h2>
++<p><strong>Syntax:</strong> LDAPHomedirOnDemandSuffix <em>"additional-directory"</em><br>
++  <strong>Default:</strong> <code>LDAPHomedirOnDemandSuffix ""</code><br>
++  <strong>Context:</strong> server config, &lt;VirtualHost&gt;, &lt;Global&gt;<br>
++  <strong>Compatibility:</strong> 1.2.0 and later</p>
++<p>LDAPHomedirOnDemandSuffix allows you to specify an additional directory
++   to be created within a user's home directory when it is created on
++   demand. For example, if a user's home directory is "/home/user", setting
++   this configuration directive to <strong><em>"public_html"</em></strong>
++   will also create "/home/user/public_html" on demand. To use this feature,
++   you must also activate <strong><em>
++   <a href="#LDAPHomedirOnDemand">LDAPHomedirOnDemand</a></em></strong> in
++   your configuration.</p>
++<hr>
+ <h2><a name="LDAPNegativeCache"></a></h2>
+ <p><strong>Syntax:</strong> LDAPNegativeCache <em>on|off</em><br>
+   <strong>Default:</strong> <code>LDAPNegativeCache off</code><br>
+@@ -1365,6 +1381,17 @@
+   <strong>Compatibility:</strong> 1.2.0pre10 and later</p>
+ <p>Sets the timeout used for LDAP directory queries. The default is the
+    default timeout used by the LDAP API.
++<hr>
++<h2><a name="LDAPSearchScope"></a></h2>
++<p><strong>Syntax:</strong> LDAPSearchScope <em>onelevel|subtree</em><br>
++  <strong>Default:</strong> <code>LDAPSearchScope subtree</code><br>
++  <strong>Context:</strong> server config, &lt;VirtualHost&gt;, &lt;Global&gt;<br>
++  <strong>Compatibility:</strong> 1.2.0 and later</p>
++<p>Set the scope used for LDAP searches. Setting this directive to
++   <strong><em>onelevel</em></strong> searches only one level deep in the
++   LDAP tree. The default setting, <strong><em>subtree</em></strong>,
++   searches for all entries in the tree from the current level down.
++   </p>
+ <hr>
+ <h2><a name="LDAPServer"></a></h2>
+ <p><strong>Syntax:</strong> LDAPServer <em>"hostname1:port hostname2:port ..."</em><br>
