@@ -20,7 +20,7 @@
 
 /*
  * $Libraries: -lldap -llber$
- * ldap password lookup module for ProFTPD (mod_ldap v2.5)
+ * ldap password lookup module for ProFTPD (mod_ldap v2.5.1)
  * Author: John Morrissey <jwm@horde.net>
  *
  * Thanks for patches to:
@@ -109,7 +109,7 @@ static struct passwd *ldap_user_lookup(char *filter, char *ldap_attrs[], char *p
 {
   LDAPMessage *result, *e;
   char **values;
-  unsigned short int i = 1;
+  unsigned short int i = 0;
   struct passwd *pw;
   struct stat st;
 

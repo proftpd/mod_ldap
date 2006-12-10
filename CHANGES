@@ -1,3 +1,7 @@
+v2.5.1:
+* Fixed a one-line bug that broke password authentication when AuthBinds
+  weren't being used.
+
 v2.5:
 * Authenticated bind support added. mod_ldap now fetches all user information
   except for userPassword as the DN specified in LDAPDNInfo and then re-binds

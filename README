@@ -1,5 +1,5 @@
-mod_ldap v2.5
-=============
+mod_ldap v2.5.1
+===============
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
