@@ -18,7 +18,7 @@
  */
 
 /*
- * mod_ldap v2.8
+ * mod_ldap v2.8.1
  *
  * Thanks for patches go to (in alphabetical order):
  * 
@@ -272,10 +272,10 @@ pr_ldap_mkpath(pool *p, const char *path, mode_t mode)
            want to use the mode specified by the configuration and chown it
            to the user's UID/GID. */
 
-        if (buf != NULL)
-          pr_ldap_mkdir(curpath, 0755, 0, 0);
-        else
+        if ((buf == NULL) || (*buf == '\0'))
           pr_ldap_mkdir(curpath, mode, session.login_uid, session.login_gid);
+        else
+          pr_ldap_mkdir(curpath, 0755, 0, 0);
       }
       else {
         /* fs_stat() failed for some other (non-ENOENT) reason. */
@@ -1072,28 +1072,20 @@ handle_ldap_name_gid(cmd_rec *cmd)
 MODRET
 set_ldap_server(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param_str("LDAPServer", 1, cmd->argv[1]);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param_str("LDAPServer", 1, cmd->argv[1]);
   return HANDLED(cmd);
 }
 
 MODRET
 set_ldap_dninfo(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param_str("LDAPDNInfo", 2, cmd->argv[1], cmd->argv[2]);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param_str("LDAPDNInfo", 2, cmd->argv[1], cmd->argv[2]);
   return HANDLED(cmd);
 }
 
@@ -1101,7 +1093,6 @@ MODRET
 set_ldap_authbinds(cmd_rec *cmd)
 {
   int b;
-  config_rec *c;
 
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
@@ -1109,37 +1100,27 @@ set_ldap_authbinds(cmd_rec *cmd)
   if ((b = get_boolean(cmd, 1)) == -1)
     CONF_ERROR(cmd, "LDAPAuthBinds: expected a boolean value for first argument.");
 
-  c = add_config_param("LDAPAuthBinds", 1, (void *)b);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPAuthBinds", 1, (void *)b);
   return HANDLED(cmd);
 }
 
 MODRET
 set_ldap_querytimeout(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param("LDAPQueryTimeout", 1, atoi(cmd->argv[1]));
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPQueryTimeout", 1, atoi(cmd->argv[1]));
   return HANDLED(cmd);
 }
 
 MODRET
 set_ldap_searchscope(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param_str("LDAPSearchScope", 1, cmd->argv[1]);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param_str("LDAPSearchScope", 1, cmd->argv[1]);
   return HANDLED(cmd);
 }
 
@@ -1160,7 +1141,6 @@ set_ldap_doauth(cmd_rec *cmd)
   c = add_config_param("LDAPDoAuth", 3, (void *)b);
   c->argv[1] = pstrdup(permanent_pool, cmd->argv[2]);
   c->argv[2] = pstrdup(permanent_pool, cmd->argv[3]);
-  c->flags |= CF_MERGEDOWN;
 
   return HANDLED(cmd);
 }
@@ -1182,7 +1162,6 @@ set_ldap_douid(cmd_rec *cmd)
   c = add_config_param("LDAPDoUIDLookups", 3, (void *)b);
   c->argv[1] = pstrdup(permanent_pool, cmd->argv[2]);
   c->argv[2] = pstrdup(permanent_pool, cmd->argv[3]);
-  c->flags |= CF_MERGEDOWN;
 
   return HANDLED(cmd);
 }
@@ -1204,7 +1183,6 @@ set_ldap_dogid(cmd_rec *cmd)
   c = add_config_param("LDAPDoGIDLookups", 3, (void *)b);
   c->argv[1] = pstrdup(permanent_pool, cmd->argv[2]);
   c->argv[2] = pstrdup(permanent_pool, cmd->argv[3]);
-  c->flags |= CF_MERGEDOWN;
 
   return HANDLED(cmd);
 }
@@ -1212,60 +1190,46 @@ set_ldap_dogid(cmd_rec *cmd)
 MODRET
 set_ldap_defaultuid(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param("LDAPDefaultUID", 1, atoi(cmd->argv[1]));
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPDefaultUID", 1, atoi(cmd->argv[1]));
   return HANDLED(cmd);
 }
 
 MODRET
 set_ldap_defaultgid(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param("LDAPDefaultGID", 1, atoi(cmd->argv[1]));
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPDefaultGID", 1, atoi(cmd->argv[1]));
   return HANDLED(cmd);
 }
 
 MODRET set_ldap_forcedefaultuid(cmd_rec *cmd)
 {
   int b;
-  config_rec *c;
 
   CHECK_CONF(cmd,CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
   if ((b = get_boolean(cmd, 1)) == -1)
     CONF_ERROR(cmd, "LDAPForceDefaultUID: expected boolean argument for first argument.");
 
-  c = add_config_param("LDAPForceDefaultUID", 1, (void *)b);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPForceDefaultUID", 1, (void *)b);
   return HANDLED(cmd);
 }
 
 MODRET set_ldap_forcedefaultgid(cmd_rec *cmd)
 {
   int b;
-  config_rec *c;
 
   CHECK_CONF(cmd,CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
   if ((b = get_boolean(cmd, 1)) == -1)
     CONF_ERROR(cmd, "LDAPForceDefaultGID: expected boolean argument for first argument.");
 
-  c = add_config_param("LDAPForceDefaultGID", 1, (void *)b);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPForceDefaultGID", 1, (void *)b);
   return HANDLED(cmd);
 }
 
@@ -1273,7 +1237,6 @@ MODRET
 set_ldap_negcache(cmd_rec *cmd)
 {
   int b;
-  config_rec *c;
 
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
@@ -1281,9 +1244,7 @@ set_ldap_negcache(cmd_rec *cmd)
   if ((b = get_boolean(cmd, 1)) == -1)
     CONF_ERROR(cmd, "LDAPNegativeCache: expected a boolean value for first argument.");
 
-  c = add_config_param("LDAPNegativeCache", 1, (void *)b);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPNegativeCache", 1, (void *)b);
   return HANDLED(cmd);
 }
 
@@ -1301,7 +1262,6 @@ set_ldap_hdod(cmd_rec *cmd)
 
   c = add_config_param("LDAPHomedirOnDemand", 2, (void *)b);
   c->argv[1] = pstrdup(permanent_pool, cmd->argv[2]);
-  c->flags |= CF_MERGEDOWN;
 
   return HANDLED(cmd);
 
@@ -1310,14 +1270,10 @@ set_ldap_hdod(cmd_rec *cmd)
 MODRET
 set_ldap_hdodprefix(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param_str("LDAPHomedirOnDemandPrefix", 1, cmd->argv[1]);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param_str("LDAPHomedirOnDemandPrefix", 1, cmd->argv[1]);
   return HANDLED(cmd);
 }
 
@@ -1325,7 +1281,6 @@ MODRET
 set_ldap_hdodprefixnouname(cmd_rec *cmd)
 {
   int b;
-  config_rec *c;
 
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
@@ -1333,9 +1288,7 @@ set_ldap_hdodprefixnouname(cmd_rec *cmd)
   if ((b = get_boolean(cmd, 1)) == -1)
     CONF_ERROR(cmd, "LDAPHomedirOnDemandPrefixNoUsername: expected a boolean value for first argument.");
 
-  c = add_config_param("LDAPHomedirOnDemandPrefixNoUsername", 1, (void *)b);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPHomedirOnDemandPrefixNoUsername", 1, (void *)b);
   return HANDLED(cmd);
 }
 
@@ -1351,7 +1304,6 @@ set_ldap_hdodsuffix(cmd_rec *cmd)
   c = add_config_param_str("LDAPHomedirOnDemandSuffix", cmd->argc - 1, cmd->argv[1]);
   for (i = 1; i < cmd->argc; ++i)
     c->argv[i] = pstrdup(permanent_pool, cmd->argv[1 + i]);
-  c->flags |= CF_MERGEDOWN;
 
   return HANDLED(cmd);
 }
@@ -1359,14 +1311,10 @@ set_ldap_hdodsuffix(cmd_rec *cmd)
 MODRET
 set_ldap_defaultauthscheme(cmd_rec *cmd)
 {
-  config_rec *c;
-
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  c = add_config_param_str("LDAPDefaultAuthScheme", 1, cmd->argv[1]);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param_str("LDAPDefaultAuthScheme", 1, cmd->argv[1]);
   return HANDLED(cmd);
 }
 
@@ -1377,7 +1325,6 @@ set_ldap_usetls(cmd_rec *cmd)
   CONF_ERROR(cmd, "LDAPUseTLS: You must edit mod_ldap.c and recompile with USE_LDAPV3_TLS enabled in order to use TLS.");
 #else /* USE_LDAPV3_TLS */
   int b;
-  config_rec *c;
 
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
@@ -1385,9 +1332,7 @@ set_ldap_usetls(cmd_rec *cmd)
   if ((b = get_boolean(cmd, 1)) == -1)
     CONF_ERROR(cmd, "LDAPUseTLS: expected a boolean value for first argument.");
 
-  c = add_config_param("LDAPUseTLS", 1, (void *)b);
-  c->flags |= CF_MERGEDOWN;
-
+  add_config_param("LDAPUseTLS", 1, (void *)b);
   return HANDLED(cmd);
 #endif /* USE_LDAPV3_TLS */
 }
@@ -1402,7 +1347,7 @@ ldap_getconf(void)
   /* If ldap_server is NULL, ldap_init() will connect to your LDAP SDK's default. */
   ldap_server = (char *)get_param_ptr(main_server->conf, "LDAPServer", FALSE);
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPDNInfo", FALSE)) != NULL) {
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPDNInfo", FALSE)) != NULL) {
     ldap_dn = pstrdup(session.pool, c->argv[0]);
     ldap_dnpass = pstrdup(session.pool, c->argv[1]);
   }
@@ -1417,7 +1362,7 @@ ldap_getconf(void)
     if (strcasecmp(scope, "onelevel") == 0)
       ldap_search_scope = LDAP_SCOPE_ONELEVEL;
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPDoAuth", FALSE)) != NULL) {
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPDoAuth", FALSE)) != NULL) {
     if ( (int)c->argv[0] > 0) {
       ldap_doauth = 1;
       ldap_auth_basedn = pstrdup(session.pool, c->argv[1]);
@@ -1429,7 +1374,7 @@ ldap_getconf(void)
     }
   }
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPDoUIDLookups", FALSE)) != NULL) {
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPDoUIDLookups", FALSE)) != NULL) {
     if ( (int)c->argv[0] > 0) {
       ldap_douid = 1;
       ldap_uid_basedn = pstrdup(session.pool, c->argv[1]);
@@ -1441,7 +1386,7 @@ ldap_getconf(void)
     }
   }
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPDoGIDLookups", FALSE)) != NULL) {
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPDoGIDLookups", FALSE)) != NULL) {
     if ( (int)c->argv[0] > 0) {
       ldap_dogid = 1;
       ldap_gid_basedn = pstrdup(session.pool, c->argv[1]);
@@ -1456,18 +1401,18 @@ ldap_getconf(void)
   ldap_defaultuid = get_param_int(main_server->conf, "LDAPDefaultUID", FALSE);
   ldap_defaultgid = get_param_int(main_server->conf, "LDAPDefaultGID", FALSE);
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPForceDefaultUID", FALSE)) != NULL)
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPForceDefaultUID", FALSE)) != NULL)
     if ( (int)c->argv[0] > 0)
       ldap_forcedefaultuid = 1;
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPForceDefaultGID", FALSE)) != NULL)
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPForceDefaultGID", FALSE)) != NULL)
     if ( (int)c->argv[0] > 0)
       ldap_forcedefaultgid = 1;
 
   if (get_param_int(main_server->conf, "LDAPNegativeCache", FALSE) > 0)
     ldap_negcache = 1;
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPHomedirOnDemand", FALSE)) != NULL) {
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPHomedirOnDemand", FALSE)) != NULL) {
     if ( (int)c->argv[0] > 0) {
       ldap_hdod = 1;
 
@@ -1482,7 +1427,7 @@ ldap_getconf(void)
   if (get_param_int(main_server->conf, "LDAPHomedirOnDemandPrefixNoUsername", FALSE) == 1)
     ldap_hdod_prefix_nouname = 1;
 
-  if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPHomedirOnDemandSuffix", FALSE)) != NULL) {
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPHomedirOnDemandSuffix", FALSE)) != NULL) {
     ldap_hdod_suffix = (char **) palloc(session.pool, ( (c->argc + 1) * sizeof(char *)) );
     for (i = 0; i < c->argc; ++i)
       ldap_hdod_suffix[i] = pstrdup(session.pool, c->argv[i]);

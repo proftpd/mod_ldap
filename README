@@ -1,5 +1,5 @@
-mod_ldap v2.8
-=============
+mod_ldap v2.8.1
+===============
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
@@ -12,7 +12,7 @@ before reading the CHANGES section.
 Sections:
 1. Author
 2. How do I set up mod_ldap?
-3. Changes in v2.8
+3. Changes in v2.8 - v2.8.1
 4. To Do
 5. Thanks
 
@@ -64,12 +64,19 @@ you can simply:
   Of course, you will need to update these configuration directives with
   the proper values for your environment.
 
-==================
-3. Changes in v2.8
-==================
+===========================
+3. Changes in v2.8 - v2.8.1
+===========================
 
 Please check the web site for previous changelogs.
 
+v2.8.1:
+* Fixed a bug that prevented proper permissions being applied to home
+  directories created on demand.
+* Fixed an issue that would prevent per-VirtualHost configuration directives
+  from being properly recognized.
+
+v2.8:
 * The username escape sequence in search filter templates has changed.
   You must now use %v instead of %u as the escape for the username. For
   example, if you had:
