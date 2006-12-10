@@ -1,3 +1,27 @@
+v2.8.11:
+* mod_quotatab limit support
+* Allow ATTR_* compiler defines to be overridden on the build command line,
+  e.g.: CFLAGS="-DUID_ATTR=foo" ./configure
+* The canonical username from the LDAP directory is now used in directory
+  creation.
+* LDAPForceHomedirOnDemand to force the use of the generated home directory
+  instead of the directory provided by the LDAP directory.
+* Support for permissions on LDAPHomedirOnDemand suffixes. You can say:
+
+  LDAPHomedirOnDemandSuffix foo:755 bar:700
+
+  in your proftpd.conf.
+* Support for %v escapes in LDAPDoAuth directive to allow fetching the
+  user's entry directly, without performing a search first. For example,
+
+  LDAPDoAuth on uid=%v,dc=example,dc=com
+
+  will fetch the entry uid=[username],dc=example,dc=com directly when a user
+  logs in, saving some effort on the part of the LDAP directory.
+* Leading directories are now checked for and creation is no longer
+  attempted if they already exist.
+* Miscellaneous pedanticism & cleanup in error messages and the code itself.
+
 v2.8.10:
 * Ditch ldap_build_filter() (non-portable and/or deprecated) in favor of
   our own translation function. This should make mod_ldap build against
