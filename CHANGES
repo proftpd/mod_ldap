@@ -1,3 +1,15 @@
+v2.8.2:
+* Fixed a privilege escalation bug. If LDAPHomedirOnDemand is enabled and
+  creation of the user's home directory fails, the server does not
+  relinquish root privileges. There shouldn't be exploitable, but all
+  users with LDAPHomedirOnDemand enabled are encouraged to upgrade.
+
+v2.8.1:
+* Fixed a bug that prevented proper permissions being applied to home
+  directories created on demand.
+* Fixed an issue that would prevent per-VirtualHost configuration directives
+  from being properly recognized.
+
 v2.8:
 * The username escape sequence in search filter templates has changed.
   You must now use %v instead of %u as the escape for the username. For

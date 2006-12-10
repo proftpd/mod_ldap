@@ -18,7 +18,7 @@
  */
 
 /*
- * mod_ldap v2.8.1
+ * mod_ldap v2.8.2
  *
  * Thanks for patches go to (in alphabetical order):
  * 
@@ -308,6 +308,7 @@ create_homedir(pool *p, const char *username, const char *homedir)
 
       PRIVS_ROOT;
       if (pr_ldap_mkpath(p, homedir, ldap_hdod_mode) != 0) {
+        PRIVS_RELINQUISH;
         log_pri(LOG_WARNING, "mod_ldap: create_homedir(): unable to create home directory %s: %s", homedir, strerror(errno));
         return;
       }
