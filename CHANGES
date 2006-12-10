@@ -1,3 +1,26 @@
+v2.7.6:
+* Fixing the OpenLDAP 2 fixes.
+
+v2.7.5:
+* Fixes for OpenLDAP 2 support.
+* Fix LDAP authentication filter use; previously, the user-specified search
+  filter would not be used in the second stage of authenticating a user.
+
+v2.7.4:
+* The LDAPDefaultAuthScheme directive should function properly now.
+
+v2.7.3:
+* Removed some old, useless code.
+
+v2.7.2:
+* LDAPQueryTimeout fix. In mod_ldap v2.7.1, in some situations, the query
+  timeout could be set to -1, which would cause all LDAP lookups to fail.
+
+v2.7.1:
+* Ported MacGyver's portable UID/GID code to mod_ldap
+* The value passed to LDAPQueryTimeout is now honored (the timeout isn't
+  simply set to 1 second)
+
 v2.7:
 * Added a fix for picky LDAP servers like Sun Directory Services; using
 AuthBinds with those LDAP servers would break in previous mod_ldap versions.
