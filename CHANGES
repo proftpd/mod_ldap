@@ -1,3 +1,10 @@
+v2.8.12:
+* Group code memory manipulation fixes (Phil Oester (phil at theoesters dot
+  com))
+* Default quota support
+* LDAP connections created for authenticated binds now honor the LDAPUseTLS
+  directive.
+
 v2.8.11:
 * mod_quotatab limit support
 * Allow ATTR_* compiler defines to be overridden on the build command line,
