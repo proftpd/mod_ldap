@@ -1,3 +1,18 @@
+v2.8.3:
+* Secondary group support (thanks to Andreas Strodl for providing patches)
+* LDAPHomedirOnDemand modes are now absolute; they are no longer subject
+  to ProFTPD's umask.
+* LDAPDefault[UG]ID directives should now support the full range of
+  32-bit UIDs.
+* Sanity checking is now done on LDAPDefault[UG]ID arguments to ensure
+  they're numeric.
+* LDAPDoGIDLookups now takes an extra argument. Its arguments are now:
+
+  LDAPDoGIDLookups on|off group-base-dn by-name-filter by-uid-filter
+
+  by-name-filter defaults to (&(cn=%v)(objectclass=posixGroup)) and
+  by-uid-filter defaults to (&(gidNumber=%v)(objectclass=posixGroup)).
+
 v2.8.2:
 * Fixed a privilege escalation bug. If LDAPHomedirOnDemand is enabled and
   creation of the user's home directory fails, the server does not
