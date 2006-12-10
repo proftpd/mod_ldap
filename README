@@ -1,5 +1,5 @@
-mod_ldap v2.8.3
-===============
+mod_ldap v2.8.10
+================
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
@@ -8,6 +8,8 @@ name/UID lookups against an LDAP database.
 some significant changes have been made. Do *NOT* upgrade to mod_ldap v2.8
 or later before reading the CHANGES section.
 
+**Licensing note:** Please read the top of mod_ldap.c for licensing
+information, specifically the postcard requiment. Thanks!
 
 Sections:
 1. Author
