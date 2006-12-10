@@ -1,3 +1,10 @@
+v2.8.15:
+* Fix parenthesizing in connection code.
+* Eliminate segfaults when group information for an LDAP user is available
+  from other sources (such as mod_auth_unix). Thanks to Erick Briere
+  <Erick.Briere@afp.com>.
+* Fix LDAPAttr support when more than one LDAPAttr directive is used.
+
 v2.8.14:
 * Fix authentication when LDAPAuthBinds is enabled, which broke in 2.8.13.
 * Fix a typo in the group-by-name filter.
