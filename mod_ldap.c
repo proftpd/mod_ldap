@@ -20,7 +20,7 @@
 
 /*
  * $Libraries: -lldap -llber$
- * ldap password lookup module for ProFTPD (mod_ldap v2.7)
+ * ldap password lookup module for ProFTPD (mod_ldap v2.7.4)
  * Copyright (c) 1999-2000, John Morrissey <jwm@horde.net>
  *
  * Thanks for patches to:
@@ -29,7 +29,7 @@
  * Bert Vermeulen <bert@be.easynet.net> - LDAPHomedirOnDemand,
  *                                        LDAPDefaultAuthScheme
  *
- * $Id: mod_ldap.c,v 1.2 1999/10/10 10:05:58 macgyver Exp $
+ * $Id: mod_ldap.c,v 1.13 2000/08/03 15:36:18 macgyver Exp $
  */
 
 /* Default mode to use when creating home directory on demand. */
@@ -46,6 +46,7 @@
 #include <crypt.h>
 #endif
 
+#include <errno.h>
 #include <lber.h>
 #include <ldap.h>
 
@@ -57,11 +58,21 @@
 
 #define HASH_TABLE_SIZE		10
 
+typedef union idauth {
+  uid_t uid;
+  gid_t gid;
+} idauth_t;
+
 typedef struct _idmap {
   struct _idmap *next,*prev;
 
+  /* This is a union because different OSs may give different types to UIDs
+   * and GIDs.  This presents a far more portable way to deal with this
+   * reality.
+   */
+  idauth_t id;
+
   unsigned short int negative;	/* have we gotten a negative answer before? */
-  int id;						/* uid or gid */
   char *name;					/* user or group name */
 } idmap_t;
 
@@ -99,7 +110,7 @@ static void p_ldap_connect()
 	return;
   }
 
-  ldap_querytimeout_tp.tv_sec = (ldap_querytimeout ? ldap_querytimeout : 5);
+  ldap_querytimeout_tp.tv_sec = (ldap_querytimeout > 0 ? ldap_querytimeout : 5);
   ldap_querytimeout_tp.tv_usec = 0;
 }
 
@@ -370,7 +381,7 @@ static struct group *p_ldap_getgrnam(cmd_rec *cmd, const char *name)
 
 static struct group *p_ldap_getgrgid(cmd_rec *cmd, gid_t gid)
 {
-	char *filter, gidstr[BUFSIZ],
+	char *filter, gidstr[BUFSIZ] = {'\0'},
 		 *group_attrs[] = {"cn", "gidNumber", "memberUid", NULL};
 
 	snprintf(gidstr, sizeof(gidstr), "%d", gid);
@@ -385,7 +396,6 @@ static struct group *p_ldap_getgrgid(cmd_rec *cmd, gid_t gid)
 
 static struct passwd *p_ldap_getpwnam(cmd_rec *cmd, const char *name)
 {
-  struct passwd *pw;
   char *filter,
        *name_attrs[] = {"userPassword", "uid", "uidNumber", "gidNumber",
        					"homeDirectory", "loginShell", NULL};
@@ -409,8 +419,7 @@ static struct passwd *p_ldap_getpwnam(cmd_rec *cmd, const char *name)
 
 static struct passwd *p_ldap_getpwuid(cmd_rec *cmd, uid_t uid)
 {
-  struct passwd *pw;
-  char *filter, uidstr[BUFSIZ],
+  char *filter, uidstr[BUFSIZ] = {'\0'},
        *uid_attrs[] = {"uid", "uidNumber", "gidNumber", "homeDirectory",
                        "loginShell", NULL};
 
@@ -427,35 +436,63 @@ static struct passwd *p_ldap_getpwuid(cmd_rec *cmd, uid_t uid)
   return ldap_user_lookup(filter, uid_attrs, ldap_uid_prefix, cmd->tmp_pool);
 }
 
-static int _compare_id(idmap_t *m1, idmap_t *m2)
+inline static int _compare_uid(idmap_t *m1, idmap_t *m2)
 {
-  if(m1->id < m2->id)
+  if(m1->id.uid < m2->id.uid)
     return -1;
-  if(m1->id > m2->id)
+
+  if(m1->id.uid > m2->id.uid)
     return 1;
+
   return 0;
 }
 
-static idmap_t *_auth_lookup_id(xaset_t **id_table, int id)
+inline static int _compare_gid(idmap_t *m1, idmap_t *m2)
 {
-  int hash = id % HASH_TABLE_SIZE;
+  if(m1->id.gid < m2->id.gid)
+    return -1;
+
+  if(m1->id.gid > m2->id.gid)
+    return 1;
+
+  return 0;
+}
+
+inline static int _compare_id(xaset_t **table, idauth_t id, idauth_t idcomp)
+{
+  if(table == uid_table)
+    return id.uid == idcomp.uid;
+  else
+    return id.gid == idcomp.gid;
+}
+
+static idmap_t *_auth_lookup_id(xaset_t **id_table, idauth_t id)
+{
+  int hash = ((id_table == uid_table) ? id.uid : id.gid) % HASH_TABLE_SIZE;
   idmap_t *m;
-
+  
   if(!id_table[hash])
-    id_table[hash] = xaset_create(permanent_pool,
-                     (XASET_COMPARE)_compare_id);
-
-  for(m = (idmap_t*)id_table[hash]->xas_list; m; m=m->next)
-    if(m->id == id)
+    id_table[hash] = xaset_create(permanent_pool, (id_table == uid_table) ?
+				  (XASET_COMPARE)_compare_uid :
+				  (XASET_COMPARE)_compare_gid);
+  
+  for(m = (idmap_t *) id_table[hash]->xas_list; m; m = m->next) {
+    if(_compare_id(id_table, m->id, id))
       break;
-
-  if(!m || m->id != id) {
-    /* Isn't in the table */
-    m = (idmap_t*)pcalloc(id_table[hash]->mempool,sizeof(idmap_t));
-    m->id = id;
-    xaset_insert_sort(id_table[hash],(xasetmember_t*)m,FALSE);
   }
+  
+  if(!m || !_compare_id(id_table, m->id, id)) {
+    /* Isn't in the table */
+    m = (idmap_t *) pcalloc(id_table[hash]->mempool, sizeof(idmap_t));
 
+    if(id_table == uid_table)
+      m->id.uid = id.uid;
+    else
+      m->id.gid = id.gid;
+    
+    xaset_insert_sort(id_table[hash], (xasetmember_t *) m, FALSE);
+  }
+  
   return m;
 }
 
@@ -636,7 +673,7 @@ MODRET ldap_check(cmd_rec *cmd)
 
   /* Check to see how the password is encrypted, and check accordingly. */
 
-  if (hash_method == NULL) { /* No leading {scheme} */
+  if (encname_len == strlen(cpw + 1)) { /* No leading {scheme} */
     if (ldap_defaultauthscheme && (strcasecmp(ldap_defaultauthscheme, "clear") == 0)) {
       if (strcmp(pw, cpw) != 0)
       return ERROR(cmd);
@@ -699,14 +736,14 @@ MODRET ldap_check(cmd_rec *cmd)
 MODRET ldap_uid_name(cmd_rec *cmd)
 {
   idmap_t *m;
+  idauth_t id;
   struct passwd *pw;
-  uid_t uid;
 
   if (! ldap_douid)
     return DECLINED(cmd);
 
-  uid = (uid_t)cmd->argv[0];
-  m = _auth_lookup_id(uid_table,uid);
+  id.uid = (uid_t)cmd->argv[0];
+  m = _auth_lookup_id(uid_table, id);
 
   if(!m->name) {
     if (ldap_negcache) /* If we're doing negative caching as per config... */
@@ -714,7 +751,7 @@ MODRET ldap_uid_name(cmd_rec *cmd)
         return DECLINED(cmd);
 
     /* Wasn't cached and we've haven't seen this one, so perform a lookup. */
-    pw = p_ldap_getpwuid(cmd,uid);
+    pw = p_ldap_getpwuid(cmd, id.uid);
 
     if(pw)
       m->name = pstrdup(permanent_pool,pw->pw_name);
@@ -731,15 +768,14 @@ MODRET ldap_uid_name(cmd_rec *cmd)
 MODRET ldap_gid_name(cmd_rec *cmd)
 {
   idmap_t *m;
+  idauth_t id;
   struct group *gr;
-  gid_t gid;
 
   if (! ldap_dogid)
     return DECLINED(cmd);
 
-  gid = (gid_t)cmd->argv[0];
-
-  m = _auth_lookup_id(gid_table,gid);
+  id.gid = (gid_t)cmd->argv[0];
+  m = _auth_lookup_id(gid_table, id);
 
   if(!m->name) {
     if (ldap_negcache) /* If we're doing negative caching as per config... */
@@ -747,7 +783,7 @@ MODRET ldap_gid_name(cmd_rec *cmd)
         return DECLINED(cmd);
 
     /* Wasn't cached and we've haven't seen this one, so perform a lookup. */
-    gr = p_ldap_getgrgid(cmd,gid);
+    gr = p_ldap_getgrgid(cmd, id.gid);
 
     if(gr)
       m->name = pstrdup(permanent_pool,gr->gr_name);
@@ -866,19 +902,6 @@ MODRET set_ldap_searchscope(cmd_rec *cmd)
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
   c = add_config_param_str("LDAPSearchScope", 1, cmd->argv[1]);
-  c->flags |= CF_MERGEDOWN;
-
-  return(HANDLED(cmd));
-}
-
-MODRET set_ldap_searchfilter(cmd_rec *cmd)
-{
-  config_rec *c;
-
-  CHECK_ARGS(cmd, 1);
-  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
-
-  c = add_config_param_str("LDAPSearchFilter", 1, cmd->argv[1]);
   c->flags |= CF_MERGEDOWN;
 
   return(HANDLED(cmd));
@@ -1037,7 +1060,7 @@ MODRET set_ldap_defaultauthscheme(cmd_rec *cmd)
 
 static int ldap_getconf(void)
 {
-  char *conf_timeout, *scope;
+  char *scope;
   config_rec *c;
 
   /* If ldap_server is NULL, ldap_open() will connect to localhost. */
@@ -1051,8 +1074,7 @@ static int ldap_getconf(void)
   if (get_param_int(main_server->conf,"LDAPAuthBinds", FALSE) > 0)
     ldap_authbinds = 1;
 
-  if (get_param_int(main_server->conf, "LDAPQueryTimeout", FALSE) > 0)
-    ldap_querytimeout = 1;
+  ldap_querytimeout = get_param_int(main_server->conf, "LDAPQueryTimeout", FALSE);
 
   scope = get_param_ptr(main_server->conf, "LDAPSearchScope", FALSE);
   if (scope && *scope)
@@ -1114,7 +1136,6 @@ static conftable ldap_config[] = {
   { "LDAPAuthBinds",             set_ldap_authbinds,             NULL },
   { "LDAPQueryTimeout",          set_ldap_querytimeout,          NULL },
   { "LDAPSearchScope",           set_ldap_searchscope,           NULL },
-  { "LDAPSearchFilter",          set_ldap_searchfilter,          NULL },
   { "LDAPNegativeCache",         set_ldap_negcache,              NULL },
   { "LDAPDoAuth",                set_ldap_doauth,                NULL },
   { "LDAPDoUIDLookups",          set_ldap_douid,                 NULL },

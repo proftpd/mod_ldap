@@ -1,17 +1,17 @@
-mod_ldap v2.7
-=============
+mod_ldap v2.7.4
+===============
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
 
 **Please note:** Read the CHANGES section below for mod_ldap v2.7 changes;
 some significant changes have been made. Do *NOT* upgrade to mod_ldap v2.7
-before reading the CHANGES section.
+or later before reading the CHANGES section.
 
 
 Sections:
 1. How do I set up mod_ldap?
-2. Changes in v2.5.2 - v2.7
+2. Changes in v2.7 - v2.7.4
 3. To-Do
 4. Thanks
 5. Author
@@ -45,7 +45,6 @@ Read up on the LDAP config-file directives in doc/Configuration.html. At
     LDAPDoAuth            on "dc=users,dc=horde,dc=net"
 
 
-
 If you wish to use a newer version of mod_ldap that is not yet included with
 a release version of ProFTPD, simply download the file mod_ldap.c, say:
 
@@ -54,10 +53,25 @@ cp -f mod_ldap.c proftpd-version/contrib
 and then follow the same steps as above.
 
 ===========================
-2. Changes in v2.5.2 - v2.7
+2. Changes in v2.7 - v2.7.4
 ===========================
 
 Please check the web site for previous changelogs.
+
+v2.7.4:
+* The LDAPDefaultAuthScheme directive should function properly now.
+
+v2.7.3:
+* Removed some old, useless code.
+
+v2.7.2:
+* LDAPQueryTimeout fix. In mod_ldap v2.7.1, in some situations, the query
+  timeout could be set to -1, which would cause all LDAP lookups to fail.
+
+v2.7.1:
+* Ported MacGyver's portable UID/GID code to mod_ldap
+* The value passed to LDAPQueryTimeout is now honored (the timeout isn't
+  simply set to 1 second)
 
 v2.7:
 * Added a fix for picky LDAP servers like Sun Directory Services; using
@@ -88,21 +102,6 @@ To emulate *both* allowedServices and deniedServices checking, use this
 filter (beware line wrap):
 (&(uid=%u)(|(allowedServices=*FTP*)(!(allowedService=*)))(!(deniedServices=*FTP*)))
 
-v2.6.1:
-* Fixed a bug that would prevent proper search scope selection.
-
-v2.6:
-* HomedirOnDemandSuffix - create an additional subdirectory in a user's home
-  directory (/home/user/anotherdirectory) on demand
-* Minor group fixes/cleanups - supplementary groups now work properly
-* Password {scheme}s are now treated in a case-insensitive manner.
-* Password-hash support for any crypto method OpenSSL supports
-  To enable extended OpenSSL password hash support, edit mod_ldap.c and
-  uncomment #define HAVE_OPENSSL. You'll also need to edit Make.rules to
-  link against OpenSSL. Further details are provided in mod_ldap.c.
-* Runtime search scope selection; one-level or subtree searches can be
-  selected from proftpd.conf.
-
 =======
 3. ToDo
 =======
@@ -114,6 +113,10 @@ v2.6:
 =========
 4. Thanks
 =========
+
+If you've pointed a bug out to me, submitted code or assisted in mod_ldap
+development in some way or another, you should be here! If you're not,
+please send me an e-mail; I'll be glad to add you.
 
 * James <james@wwnet.net> for a copy of his LDAP module that he
 * Krzysztof Dabrowski <brush@pol.pl> for some big virtual-user ideas
