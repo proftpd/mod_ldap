@@ -1,0 +1,10 @@
+tar xvzf proftpd-1.2.0pre7.tar.gz
+cp proftpd-ldap.patch proftpd-1.2.0pre7
+cd proftpd-1.2.0pre7
+patch -sp1 < proftpd-ldap.patch
+./configure --with-modules=mod_ldap
+make
+make install
+Add the contents of the 'schema' file to your slapd.oc.conf.
+The 'ldif' file contains a sample ldif. Modify it to your liking and
+    say ldapadd -D your-root-dn -w your-root-dn-password < ldif

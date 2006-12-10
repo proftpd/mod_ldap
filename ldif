@@ -1,0 +1,8 @@
+dn: cn=John Morrissey, dc=horde, dc=net
+cn: John Morrissey
+uid: jwmsax
+uidNumber: 2000
+gidNumber: 100
+homeDirectory: /home/jwm
+userPassword: {crypt}SosPSqZVHbI5Y
+loginShell: /bin/bash

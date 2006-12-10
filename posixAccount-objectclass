@@ -1,0 +1,13 @@
+objectclass posixAccount
+	requires
+		objectclass,
+		cn,
+		uid,
+		uidNumber,
+		gidNumber,
+		homeDirectory
+	allows
+		userPassword,
+		loginShell,
+		gecos,
+		description
