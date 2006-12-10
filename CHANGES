@@ -1,3 +1,21 @@
+v2.8.13:
+* This release REQUIRES ProFTPD 1.2.11rc1 or later.
+* mod_ldap now uses ProFTPD's CreateHome to create home directories. Some
+  LDAPHomedirOnDemand directives have been removed in favor of CreateHome.
+  The directives that apply to home directory path name generation still
+  exist, but have been renamed to LDAPGenerateHomedir.
+* The LDAP protocol version now defaults to LDAPv3. If you need to use
+  LDAPv2, say 'LDAPProtocolVersion 2' in your proftpd.conf. (Bug #2443)
+* LDAP attribute names are now configurable via proftpd.conf. For example,
+  if you want to change the uid attribute name, say 'LDAPAttr uid myUidAttr'
+  in your proftpd.conf.
+* The define to enable TLS support has been renamed to USE_LDAP_TLS.
+* The '%u' escape is now supported in all cases where '%v' is.
+* ProFTPD's UserPassword directive now works with LDAPAuthBinds enabled.
+  (Bug #2482)
+* Changed ldap_quota_lookup CMD to a HOOK.
+* Fixed a few compiler type warnings.
+
 v2.8.12:
 * Group code memory manipulation fixes (Phil Oester (phil at theoesters dot
   com))
