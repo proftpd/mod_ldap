@@ -1,3 +1,24 @@
+v1.2:
+	* made the variables for the config entries static
+	* moved the meat of the ldap querying code to a separate function, this
+	  gets the individual getpw*() handlers down to about 15-20 lines each.
+	  also paves the way for easy LDAP group lookups too.
+	* explicitly set ld = NULL in p_endpwent(), looks like ldap_unbind()
+	  doesn't always set it to NULL, and bad things happen later.
+	* fixed a showstopper: if there's a user/group directive in proftpd.conf,
+	  mod_ldap:getpwnam() will be called to look up the user. since the
+	  LDAP config variables aren't initialized yet, the LDAP libraries crash
+	  and burn upon encountering a NULL ldap_prefix. put some checks in
+	  p_setpwent() to check for this and disable LDAP lookups before the
+	  parent forks and the config is initialized. thanks to Sean Murphy
+	  <smurphy@berbee.com> for sending me on this path.
+	* modified pw_auth() so that it will assume crypt() if there's no leading
+	  {scheme} in the password returned by the LDAP query.
+	* pw_auth() turned off logging of unidentifiable password encryption
+	  schemes; this would syslog the encrypted password returned by the ldap
+	  server. many people have their logs tightened, but not all.
+	* a few miscellaneous changes & cleanups
+
 v1.1:
     * Added $Libraries$ directive to mod_ldap so the module is now entirely
       self-contained.
