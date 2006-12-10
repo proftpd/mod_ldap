@@ -1,0 +1,8 @@
+dn: cn=mygroup, dc=horde, dc=net
+objectclass: posixGroup
+cn: mygroup
+gidNumber: 100
+memberUid: user1
+memberUid: user2
+memberUid: user3
+memberUid: user4

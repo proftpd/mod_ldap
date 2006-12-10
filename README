@@ -1,132 +1,134 @@
-mod_ldap v2.6.1
-===============
+mod_ldap v2.7
+=============
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
 
-**Please note:** some of the basic configuration directives changed in
-version 2.0 of mod_ldap; please read the included documentation carefully
-to find out what you will need to update in your proftpd.conf.
+**Please note:** Read the CHANGES section below for mod_ldap v2.7 changes;
+some significant changes have been made. Do *NOT* upgrade to mod_ldap v2.7
+before reading the CHANGES section.
 
 
 Sections:
 1. How do I set up mod_ldap?
-2. To-Do
-3. Thanks
-4. Author
-5. Bug Reports
+2. Changes in v2.5.2 - v2.7
+3. To-Do
+4. Thanks
+5. Author
 
 
 ============================
 1. How do I set up mod_ldap?
 ============================
 
-I've only tested mod_ldap with recent versions of OpenLDAP-stable, but
-others are using an unmodified mod_ldap with Netscape Directory Server (on
-Solaris) and the IBM SecureWay LDAP server (on AIX).
+If you are using a version of mod_ldap included with a ProFTPD release,
+you can simply:
 
-1. Add the following schema to your slapd.oc.conf (or equivalent) and
-   restart your LDAP server:
+tar xvzf proftpd-version.tar.gz
+cd proftpd-version
+./configure --with-modules=mod_ldap
+make
+make install
+Add the contents of posixAccount-objectclass to your slapd.oc.conf (or
+    equivalent) and restart your LDAP server. If you plan on using mod_ldap
+    for group lookups, also add the contents of posixGroup-objectclass.
+The 'user-ldif' file contains a sample user ldif. Modify it to your liking
+    and say ldapadd -D your-root-dn -w your-root-dn-password < ldif
+Read up on the LDAP config-file directives in doc/Configuration.html. At
+    bare minimum, you'll need to have LDAPServer, LDAPDNInfo, and LDAPDoAuth
+    configuration directives in your proftpd.conf.
 
-objectclass posixAccount
-    requires
-        objectclass,
-        cn,
-        uid,
-        uidNumber,
-        gidNumber,
-        homeDirectory
-    allows
-        userPassword,
-        loginShell,
-        gecos,
-        description
+    A sample set of LDAP configuration directives is included here:
 
-If you plan on using mod_ldap for group lookups, also add the following
-schema.
-
-objectclass posixGroup
-    requires
-        gidNumber
-    allows
-        userPassword,
-        memberUid,
-        description
+    LDAPServer            localhost
+    LDAPDNInfo            cn=your-dn,dc=horde,dc=net dnpass
+    LDAPDoAuth            on "dc=users,dc=horde,dc=net"
 
 
-2. Create an ldif file and add it to your LDAP server by saying: ldapadd -D
-   your-root-dn -w your-root-dn-password < ldif-file
 
-A sample ldif is included here:
+If you wish to use a newer version of mod_ldap that is not yet included with
+a release version of ProFTPD, simply download the file mod_ldap.c, say:
 
-dn: cn=John Morrissey, dc=horde, dc=net
-cn: John Morrissey
-uid: jwmsax
-uidNumber: 2000
-gidNumber: 100
-homeDirectory: /home/jwm
-userPassword: {crypt}SosPSqZVHbI5Y
-loginShell: /bin/bash
+cp -f mod_ldap.c proftpd-version/contrib
 
-3. Read up on the LDAP config-file directives in doc/Configuration.html. At
-bare minimum, you'll need to have LDAPServer, LDAPDNInfo, and LDAPDoAuth
-configuration directives in your proftpd.conf.
+and then follow the same steps as above.
 
-A sample set of LDAP configuration directives is included here:
+===========================
+2. Changes in v2.5.2 - v2.7
+===========================
 
-LDAPServer            localhost
-LDAPDNInfo            cn=your-dn,dc=horde,dc=net dnpass
-LDAPDoAuth            on "dc=users,dc=horde,dc=net"
+Please check the web site for previous changelogs.
 
-========
-2. To-Do
-========
+v2.7:
+* Added a fix for picky LDAP servers like Sun Directory Services; using
+AuthBinds with those LDAP servers would break in previous mod_ldap versions.
+See the comments in the code for more details (search for "Sun Directory
+Services").
+* You can now specify custom LDAP search filters at runtime. See the
+configuration guide (doc/Configuration.html) entries for LDAPDo* for more
+details.
+* Objectclass is now enforced. You *must* have an objectclass attribute for
+each of your LDAP objects. This attribute must have a value of
+'posixAccount' ("objectclass: posixAccount"). For groups, this attribute
+must have the value 'posixGroup' ("objectclass: posixGroup"). If you wish to
+disable this objectclass enforcement, use the the LDAP filter "(uid=%u)" for
+Auth and UID lookups (see doc/Configuration.html for how to specify a custom
+LDAP search filter).
+* Removed allowedServices code. The functionality that allowedServices
+provided can now be duplicated with a modified LDAP search filter.
 
-* Runtime specification of an LDAP search filter - this is in my latest
-  development branch; if you'd like a copy, just ask.
+For example, to replicate basic allowedServices checking, pass this LDAP
+search filter to LDAPDoAuth:
+(&(uid=%u)(|(allowedServices=*FTP*)(!(allowedService=*))))
+
+To emulate deniedServices checking, use this search filter:
+(&(uid=%u)(!(deniedServices=*FTP*)))
+
+To emulate *both* allowedServices and deniedServices checking, use this
+filter (beware line wrap):
+(&(uid=%u)(|(allowedServices=*FTP*)(!(allowedService=*)))(!(deniedServices=*FTP*)))
+
+v2.6.1:
+* Fixed a bug that would prevent proper search scope selection.
+
+v2.6:
+* HomedirOnDemandSuffix - create an additional subdirectory in a user's home
+  directory (/home/user/anotherdirectory) on demand
+* Minor group fixes/cleanups - supplementary groups now work properly
+* Password {scheme}s are now treated in a case-insensitive manner.
+* Password-hash support for any crypto method OpenSSL supports
+  To enable extended OpenSSL password hash support, edit mod_ldap.c and
+  uncomment #define HAVE_OPENSSL. You'll also need to edit Make.rules to
+  link against OpenSSL. Further details are provided in mod_ldap.c.
+* Runtime search scope selection; one-level or subtree searches can be
+  selected from proftpd.conf.
+
+=======
+3. ToDo
+=======
+
 * different log levels in mod_ldap to log varying debug info
 * perror()-like error reporting to improve error messages
 * shadowAccount objectclass stuff - inactive, expiration, etc.
 
 =========
-3. Thanks
+4. Thanks
 =========
 
-* James <james@wwnet.net> for a copy of his LDAP module that he never released
+* James <james@wwnet.net> for a copy of his LDAP module that he
 * Krzysztof Dabrowski <brush@pol.pl> for some big virtual-user ideas
 * Peter Deacon <peterd@iea-software.com> for ideas
 * Peter Fabian <fabian@staff.matavnet.hu> for ideas and a tested platform
-* Pierrick Hascoet <pierrick@alias.fr> for implementing OpenSSL password
-  hash support
 * Ralf Kruedewagen <Ralf.Kruedewagen@meocom.de> for a tested platform
 * Scott Murphy <smurphy@berbee.com> for a trouble report
-* Miguel Barreiro Paz <mbpaz@edu.aytolacoruna.es> for a supported platform
-  and new supported LDAP server
 * Bert Vermeulen <bert@be.easynet.net> for patches
-* Everyone else who has sent feedback on mod_ldap
 
 =========
-4. Author
+5. Author
 =========
 
-John Morrissey, <jwm@horde.net>, http://horde.net/~jwm/software/mod_ldap
+John Morrissey, <jwm@horde.net>, http://horde.net/~jwm/software/mod_ldap/
 Feedback is much appreciated. If you're using mod_ldap successfully, or
 you're having problems getting mod_ldap up and running at your site, or
 even have some code improvements or ideas for development, please let
 me know!
-
-==============
-5. Bug Reports
-==============
-
-Bug reports/requests for assistance are welcomed, and I will answer them as
-my time permits. Please, please, please if you submit a bug report/request
-for assistance, please include the following things:
-
-* Version of mod_ldap and ProFTPD and which OS you're running them on
-* Name/version of your LDAP server
-* Relevant portions of your proftpd.conf
-* Relevant portions of your LDAP server's query logs - these are very
-  important; extra debugging information is not needed. For example, if
-  you're running OpenLDAP, run slapd *without* the -s option and include
-  what slapd leaves in your syslogs.

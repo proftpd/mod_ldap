@@ -1,8 +1,9 @@
 dn: cn=John Morrissey, dc=horde, dc=net
+objectclass: posixAccount
 cn: John Morrissey
 uid: jwmsax
 uidNumber: 2000
 gidNumber: 100
-homeDirectory: /home/jwm
+homeDirectory: /home/jwmsax
 userPassword: {crypt}SosPSqZVHbI5Y
 loginShell: /bin/bash

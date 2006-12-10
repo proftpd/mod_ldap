@@ -1,3 +1,38 @@
+v2.7:
+* Added a fix for picky LDAP servers like Sun Directory Services; using
+AuthBinds with those LDAP servers would break in previous mod_ldap versions.
+See the comments in the code for more details (search for "Sun Directory
+Services").
+* You can now pass a file mode to LDAPHomedirOnDemand to create home
+directories with that mode.
+* Improved group support; mod_ldap now supports multiple memberUid
+attributes for a group object.
+* Miscellaneous neatening/tightening of high-level auth/lookup handler
+functions.
+* You can now specify custom LDAP search filters at runtime. See the
+configuration guide (doc/Configuration.html) entries for LDAPDo* for more
+details.
+* Objectclass is now enforced. You *must* have an objectclass attribute for
+each of your LDAP objects. This attribute must have a value of
+'posixAccount' ("objectclass: posixAccount"). For groups, this attribute
+must have the value 'posixGroup' ("objectclass: posixGroup"). If you wish to 
+disable this objectclass enforcement, use the the LDAP filter "(uid=%u)" for 
+Auth and UID lookups (see doc/Configuration.html for how to specify a custom
+LDAP search filter).
+* Removed allowedServices code. The functionality that allowedServices
+provided can now be duplicated with a modified LDAP search filter.
+
+For example, to replicate basic allowedServices checking, pass this LDAP
+search filter to LDAPDoAuth:
+(&(uid=%u)(|(allowedServices=*FTP*)(!(allowedService=*))))
+
+To emulate deniedServices checking, use this search filter:
+(&(uid=%u)(!(deniedServices=*FTP*)))
+
+To emulate *both* allowedServices and deniedServices checking, use this
+filter (beware line wrap):
+(&(uid=%u)(|(allowedServices=*FTP*)(!(allowedService=*)))(!(deniedServices=*FTP*)))
+
 v2.6.1:
 * Fixed a bug that would prevent proper search scope selection.
 
