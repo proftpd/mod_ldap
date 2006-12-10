@@ -1,3 +1,6 @@
+v2.6.1:
+* Fixed a bug that would prevent proper search scope selection.
+
 v2.6:
 * HomedirOnDemandSuffix - create an additional subdirectory in a user's home
   directory (/home/user/anotherdirectory) on demand

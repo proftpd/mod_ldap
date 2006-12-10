@@ -20,7 +20,7 @@
 
 /*
  * $Libraries: -lldap -llber$
- * ldap password lookup module for ProFTPD (mod_ldap v2.6)
+ * ldap password lookup module for ProFTPD (mod_ldap v2.6.1)
  * Author: John Morrissey <jwm@horde.net>
  *
  * Thanks for patches to:
@@ -73,7 +73,7 @@ static char *ldap_server,
 static int ldap_doauth = 0, ldap_douid = 0, ldap_dogid = 0,
 		   ldap_authbinds = 0, ldap_negcache = 0, ldap_querytimeout = 0,
            ldap_defaultuid = -1, ldap_defaultgid = -1,
-		   ldap_homedirondemand = 0, ldap_search_scope;
+		   ldap_homedirondemand = 0, ldap_search_scope = LDAP_SCOPE_SUBTREE;
 struct timeval ldap_querytimeout_tp;
 
 static LDAP *ld, *ld_auth;
@@ -1018,12 +1018,9 @@ static int ldap_getconf(void)
     ldap_querytimeout = 1;
 
   scope = get_param_ptr(main_server->conf, "LDAPSearchScope", FALSE);
-  if (scope && *scope) {
+  if (scope && *scope)
     if (strcasecmp(scope, "onelevel") == 0)
       ldap_search_scope = LDAP_SCOPE_ONELEVEL;
-    else
-      ldap_search_scope = LDAP_SCOPE_SUBTREE;
-  }
 
   if ((c = find_config(CURRENT_CONF, CONF_PARAM, "LDAPDoAuth", FALSE)) != NULL) {
     if ( (int)c->argv[0] > 0) {

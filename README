@@ -1,5 +1,5 @@
-mod_ldap v2.6
-=============
+mod_ldap v2.6.1
+===============
 
 mod_ldap is a module that allows proftpd to do user authentication and
 name/UID lookups against an LDAP database.
@@ -14,6 +14,7 @@ Sections:
 2. To-Do
 3. Thanks
 4. Author
+5. Bug Reports
 
 
 ============================
@@ -105,7 +106,7 @@ LDAPDoAuth            on "dc=users,dc=horde,dc=net"
 * Everyone else who has sent feedback on mod_ldap
 
 =========
-5. Author
+4. Author
 =========
 
 John Morrissey, <jwm@horde.net>, http://horde.net/~jwm/software/mod_ldap
@@ -113,3 +114,19 @@ Feedback is much appreciated. If you're using mod_ldap successfully, or
 you're having problems getting mod_ldap up and running at your site, or
 even have some code improvements or ideas for development, please let
 me know!
+
+==============
+5. Bug Reports
+==============
+
+Bug reports/requests for assistance are welcomed, and I will answer them as
+my time permits. Please, please, please if you submit a bug report/request
+for assistance, please include the following things:
+
+* Version of mod_ldap and ProFTPD and which OS you're running them on
+* Name/version of your LDAP server
+* Relevant portions of your proftpd.conf
+* Relevant portions of your LDAP server's query logs - these are very
+  important; extra debugging information is not needed. For example, if
+  you're running OpenLDAP, run slapd *without* the -s option and include
+  what slapd leaves in your syslogs.
