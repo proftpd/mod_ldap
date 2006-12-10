@@ -1,35 +1,71 @@
+v2.0:
+* config file syntax revamped:
+   LDAPServer            localhost
+   LDAPDNInfo            cn=your-dn,dc=horde,dc=net dnpass
+   LDAPQueryTimeout      5
+   LDAPDoAuth            on "dc=horde,dc=net"
+   LDAPDoUIDLookups      on "dc=horde,dc=net"
+   LDAPDoGIDLookups      on "dc=horde,dc=net"
+   LDAPDefaultUID        35000
+   LDAPDefaultGID        1000
+   LDAPNegativeCache     on
+   LDAPHomedirOnDemand   on
+   LDAPDefaultAuthScheme clear
+* query timeout implemented
+* clear password "encryption" scheme implemented
+* group lookups
+* separate prefixes for user and group lookups
+* can turn on/off user/group lookups independently of each other
+* default [ug]ids. say you want to have a web-toaster type of deal, with
+  all users having the same [ug]ids. just don't put [ug]idNumber attrs 
+  in your ldap db for those users, and set either of these two config
+  directives. any user that doesn't have a [ug]id in the ldap database  
+  will have that info filled in with the default [ug]id.
+* allowedServices attr: (i broke with objectclass here, couldn't find
+  something that seemed to fit this.) comma-separated list of services to 
+  allow for this particular user. say you want to enable ftp access for
+  a user, but not www service. set the allowedServices attr for that  
+  particular user to "FTP" and www service will be denied. basically, 
+  if the string FTP is listed in this attr, ftp access will be allowed.  
+* query timeout config file directive added
+* you can have alternate ldap servers; just specify LDAPServer "host1
+  host2"; thanks to Peter Deacon <peterd@iea-software.com> for pointing this
+  out.
+* clear authentication scheme. some ldap servers support {clear} for
+  no password encryption.
+
 v1.2:
-	* made the variables for the config entries static
-	* moved the meat of the ldap querying code to a separate function, this
-	  gets the individual getpw*() handlers down to about 15-20 lines each.
-	  also paves the way for easy LDAP group lookups too.
-	* explicitly set ld = NULL in p_endpwent(), looks like ldap_unbind()
-	  doesn't always set it to NULL, and bad things happen later.
-	* fixed a showstopper: if there's a user/group directive in proftpd.conf,
-	  mod_ldap:getpwnam() will be called to look up the user. since the
-	  LDAP config variables aren't initialized yet, the LDAP libraries crash
-	  and burn upon encountering a NULL ldap_prefix. put some checks in
-	  p_setpwent() to check for this and disable LDAP lookups before the
-	  parent forks and the config is initialized. thanks to Sean Murphy
-	  <smurphy@berbee.com> for sending me on this path.
-	* modified pw_auth() so that it will assume crypt() if there's no leading
-	  {scheme} in the password returned by the LDAP query.
-	* pw_auth() turned off logging of unidentifiable password encryption
-	  schemes; this would syslog the encrypted password returned by the ldap
-	  server. many people have their logs tightened, but not all.
-	* a few miscellaneous changes & cleanups
+* made the variables for the config entries static
+* moved the meat of the ldap querying code to a separate function, this
+  gets the individual getpw*() handlers down to about 15-20 lines each.
+  also paves the way for easy LDAP group lookups too.
+* explicitly set ld = NULL in p_endpwent(), looks like ldap_unbind()
+  doesn't always set it to NULL, and bad things happen later.
+* fixed a showstopper: if there's a user/group directive in proftpd.conf,
+  mod_ldap:getpwnam() will be called to look up the user. since the
+  LDAP config variables aren't initialized yet, the LDAP libraries crash
+  and burn upon encountering a NULL ldap_prefix. put some checks in
+  p_setpwent() to check for this and disable LDAP lookups before the
+  parent forks and the config is initialized. thanks to Sean Murphy
+  <smurphy@berbee.com> for sending me on this path.
+* modified pw_auth() so that it will assume crypt() if there's no leading
+  {scheme} in the password returned by the LDAP query.
+* pw_auth() turned off logging of unidentifiable password encryption
+  schemes; this would syslog the encrypted password returned by the ldap
+  server. many people have their logs tightened, but not all.
+* a few miscellaneous changes & cleanups
 
 v1.1:
-    * Added $Libraries$ directive to mod_ldap so the module is now entirely
-      self-contained.
-    * Changed one reference to sprintf() to snprintf() and changed uidstr
-      in p_getpwuid() to have a length of BUFSIZ.
-    * Added config option (LDAPNegativeCache) to turn LDAP negative caching
-      on and off. The default is off (don't do LDAP negative caching).
-    * Added entries to doc/Configuration.html for all the LDAP configuration
-      directives.
-    * MacGyver added mod_ldap to the ProFTPD CVS tree; proftpd-ldap-1.1
-      is now in sync with ProFTPD CVS.
+* Added $Libraries$ directive to mod_ldap so the module is now entirely
+  self-contained.
+* Changed one reference to sprintf() to snprintf() and changed uidstr
+  in p_getpwuid() to have a length of BUFSIZ.
+* Added config option (LDAPNegativeCache) to turn LDAP negative caching
+  on and off. The default is off (don't do LDAP negative caching).
+* Added entries to doc/Configuration.html for all the LDAP configuration
+  directives.
+* MacGyver added mod_ldap to the ProFTPD CVS tree; proftpd-ldap-1.1
+  is now in sync with ProFTPD CVS.
 
 v1.0:
-    * Initial release of proftpd-ldap
+* Initial release of proftpd-ldap

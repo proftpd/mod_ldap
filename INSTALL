@@ -1,10 +1,21 @@
-tar xvzf proftpd-1.2.0pre7.tar.gz
-cp proftpd-ldap.patch proftpd-1.2.0pre7
-cd proftpd-1.2.0pre7
-patch -sp1 < proftpd-ldap.patch
+If you are using a version of mod_ldap included with a ProFTPD release,
+you can simply:
+
+tar xvzf proftpd-version.tar.gz
+cd proftpd-version
 ./configure --with-modules=mod_ldap
 make
 make install
-Add the contents of the 'schema' file to your slapd.oc.conf.
-The 'ldif' file contains a sample ldif. Modify it to your liking and
-    say ldapadd -D your-root-dn -w your-root-dn-password < ldif
+Add the contents of posixAccount-objectclass and
+    posixGroup-objectclass files to your slapd.oc.conf.
+The 'ldif' file contains a sample ldif. Modify it to your
+    liking and say ldapadd -D your-root-dn -w
+    your-root-dn-password < ldif
+
+If you wish to use a newer version of mod_ldap that is not yet included
+with a release version of ProFTPD, simply download the file mod_ldap.c,
+say:
+
+cp -f mod_ldap.c proftpd-version/contrib
+
+and then follow the same steps as above.
