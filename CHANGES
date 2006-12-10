@@ -1,3 +1,7 @@
+v2.5.2:
+* Fixed a bug that would allow unauthorized users to log in when mod_ldap
+  is used with other authentication modules and LDAPAuthBinds is set to on.
+
 v2.5.1:
 * Fixed a one-line bug that broke password authentication when AuthBinds
   weren't being used.

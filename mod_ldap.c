@@ -565,7 +565,8 @@ MODRET ldap_check(cmd_rec *cmd)
   pw = cmd->argv[2];
 
   if (ldap_authbinds) {
-    if ( (pw == NULL) || (strlen(pw) == 0) )
+    if ( (pw == NULL) || (strlen(pw) == 0) ||
+         (ldap_authbind_dn == NULL) || ((ldap_authbind_dn) == 0) )
       return DECLINED(cmd);
 
 /*    ldap_authbind_dn = pstrcat(cmd->tmp_pool, "cn=", cmd->argv[1], ",", ldap_auth_prefix, NULL);*/
