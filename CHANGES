@@ -1,3 +1,7 @@
+v2.8.17:
+* Use non-deprecated LDAP API functions if the LDAP SDK is new enough to
+  comply with draft-ietf-ldapext-ldap-c-api-04.
+
 v2.8.16:
 * Add 'LDAPAliasDereference never|search|find|always' directive, which
   defaults to never. This default is compatible with previous versions,
