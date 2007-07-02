@@ -22,7 +22,7 @@
  */
 
 /*
- * mod_ldap v2.8.17-20070603
+ * mod_ldap v2.8.17-20070701
  *
  * Thanks for patches go to (in alphabetical order):
  *
@@ -70,7 +70,7 @@
 #include "conf.h"
 #include "privs.h"
 
-#define MOD_LDAP_VERSION	"mod_ldap/2.8.17-20070603"
+#define MOD_LDAP_VERSION	"mod_ldap/2.8.17-20070701"
 
 #if PROFTPD_VERSION_NUMBER < 0x0001021002
 # error MOD_LDAP_VERSION " requires ProFTPD 1.2.10rc2 or later"
@@ -181,7 +181,8 @@ static char *ldap_server, *ldap_dn, *ldap_dnpass,
             *ldap_attr_cn = "cn",
             *ldap_attr_memberuid = "memberUid",
             *ldap_attr_ftpquota = "ftpQuota";
-static int ldap_doauth = 0, ldap_douid = 0, ldap_dogid = 0, ldap_doquota = 0,
+static int ldap_port = LDAP_PORT,
+           ldap_doauth = 0, ldap_douid = 0, ldap_dogid = 0, ldap_doquota = 0,
            ldap_authbinds = 1, ldap_negcache = 1,
            ldap_querytimeout = 0, ldap_genhdir = 0, ldap_genhdir_prefix_nouname = 0,
            ldap_forcedefaultuid = 0, ldap_forcedefaultgid = 0,
@@ -196,6 +197,9 @@ static gid_t ldap_defaultgid = -1;
 #ifdef USE_LDAP_TLS
 static int ldap_use_tls = 0;
 #endif
+#ifdef LDAP_OPT_X_TLS_HARD
+static int ldap_use_ssl = 0;
+#endif
 
 static LDAP *ld = NULL;
 static struct passwd *pw = NULL;
@@ -209,22 +213,6 @@ pr_ldap_module_init(void)
   memset(uid_table, 0, sizeof(uid_table));
   memset(gid_table, 0, sizeof(gid_table));
   return 0;
-}
-
-static void
-pr_ldap_set_dereference(LDAP *deref_ld, int derefopt)
-{
-#ifdef LDAP_OPT_DEREF
-  int ret;
-  ret = ldap_set_option(ld, LDAP_OPT_DEREF, (void *)&derefopt);
-  if (ret != LDAP_OPT_SUCCESS) {
-    pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_set_dereference(): ldap_set_option() unable to set dereference to %d: %s", derefopt, ldap_err2string(ret));
-  }
-#else
-  deref_ld->ld_deref = derefopt;
-#endif
-
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set dereferencing to %d", derefopt);
 }
 
 static void
@@ -250,11 +238,14 @@ static int
 pr_ldap_connect(LDAP **conn_ld, int bind)
 {
   int ret, version;
+#ifdef LDAP_OPT_X_TLS_HARD
+  int sslenable = LDAP_OPT_X_TLS_HARD;
+#endif
 #if LDAP_API_VERSION >= 2000
   struct berval bindcred;
 #endif
 
-  *conn_ld = ldap_init(ldap_server, LDAP_PORT);
+  *conn_ld = ldap_init(ldap_server, ldap_port);
   if (!conn_ld) {
     pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_init() to %s failed: %s", ldap_server, strerror(errno));
     return -1;
@@ -280,15 +271,27 @@ pr_ldap_connect(LDAP **conn_ld, int bind)
   }
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set protocol version to %d", version);
 
+#ifdef LDAP_OPT_X_TLS_HARD
+  if (ldap_use_ssl) {
+    ret = ldap_set_option(*conn_ld, LDAP_OPT_X_TLS, &sslenable);
+    if (ret != LDAP_OPT_SUCCESS) {
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): couldn't enable SSL: %s", ldap_err2string(ret));
+      pr_ldap_unbind();
+      return -1;
+    }
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": enabled SSL.");
+  }
+#endif /* LDAP_OPT_X_TLS_HARD */
+
 #ifdef USE_LDAP_TLS
   if (ldap_use_tls == 1) {
-    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": starting TLS for this connection.");
     ret = ldap_start_tls_s(*conn_ld, NULL, NULL);
     if (ret != LDAP_SUCCESS) {
       pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Starting TLS failed: %s", ldap_err2string(ret));
       pr_ldap_unbind();
       return -1;
     }
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": enabled TLS.");
   }
 #endif /* USE_LDAP_TLS */
 
@@ -308,7 +311,15 @@ pr_ldap_connect(LDAP **conn_ld, int bind)
     pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": successfully bound as %s with password %s", ldap_dn, ldap_dnpass);
   }
 
-  pr_ldap_set_dereference(*conn_ld, ldap_dereference);
+#ifdef LDAP_OPT_DEREF
+  ret = ldap_set_option(*conn_ld, LDAP_OPT_DEREF, (void *)&ldap_dereference);
+  if (ret != LDAP_OPT_SUCCESS) {
+    pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_set_option() unable to set dereference to %d: %s", ldap_dereference, ldap_err2string(ret));
+  }
+#else
+  deref_ld->ld_deref = ldap_dereference;
+#endif
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set dereferencing to %d", ldap_dereference);
 
   ldap_querytimeout_tp.tv_sec = (ldap_querytimeout > 0 ? ldap_querytimeout : 5);
   ldap_querytimeout_tp.tv_usec = 0;
@@ -1526,7 +1537,50 @@ set_ldap_server(cmd_rec *cmd)
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
+  if (find_config(main_server->conf, CONF_PARAM, "LDAPURL", FALSE)) {
+    CONF_ERROR(cmd, "LDAPServer: cannot be used with LDAPURL.");
+  }
+
   add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
+  return PR_HANDLED(cmd);
+}
+
+MODRET
+set_ldap_url(cmd_rec *cmd)
+{
+  LDAPURLDesc *url;
+
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
+
+  if (find_config(main_server->conf, CONF_PARAM, "LDAPServer", FALSE)) {
+    CONF_ERROR(cmd, "LDAPURL: cannot be used with LDAPServer.");
+  }
+
+  if (ldap_url_parse(cmd->argv[1], &url) != LDAP_SUCCESS) {
+    CONF_ERROR(cmd, "LDAPURL: must be supplied with a valid LDAP URL.");
+  }
+
+#ifdef LDAP_OPT_X_TLS_HARD
+  if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0 &&
+      strncasecmp(cmd->argv[1], "ldaps:", strlen("ldaps:")) != 0) {
+
+    CONF_ERROR(cmd, "Invalid scheme specified by LDAPURL. Valid schemes are 'ldap' or 'ldaps'.");
+  }
+#else /* LDAP_OPT_X_TLS_HARD */
+  if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0) {
+    CONF_ERROR(cmd, "Invalid scheme specified by LDAPURL. Valid schemes are 'ldap'.");
+  }
+#endif /* LDAP_OPT_X_TLS_HARD */
+
+  if (url->lud_dn && strcmp(url->lud_dn, "") != 0) {
+    CONF_ERROR(cmd, "A base DN may not be specified by LDAPURL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
+  }
+  if (url->lud_filter && strcmp(url->lud_filter, "") != 0) {
+    CONF_ERROR(cmd, "A base DN may not be specified by LDAPURL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
+  }
+
+  add_config_param_str(cmd->argv[0], 1, url);
   return PR_HANDLED(cmd);
 }
 
@@ -1917,6 +1971,10 @@ set_ldap_usetls(cmd_rec *cmd)
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
+  if (find_config(main_server->conf, CONF_PARAM, "LDAPUseSSL", FALSE)) {
+    CONF_ERROR(cmd, "LDAPUseTLS: cannot be used with LDAPUseSSL.");
+  }
+
   if ((b = get_boolean(cmd, 1)) == -1) {
     CONF_ERROR(cmd, "LDAPUseTLS: expected a boolean value for first argument.");
   }
@@ -1926,6 +1984,33 @@ set_ldap_usetls(cmd_rec *cmd)
   *((int *) c->argv[0]) = b;
   return PR_HANDLED(cmd);
 #endif /* USE_LDAP_TLS */
+}
+
+MODRET
+set_ldap_usessl(cmd_rec *cmd)
+{
+#ifndef LDAP_OPT_X_TLS_HARD
+  CONF_ERROR(cmd, "LDAPUseSSL: Your LDAP libraries do not define LDAP_OPT_X_TLS_HARD to enable LDAP SSL support.");
+#else /* LDAP_OPT_X_TLS_HARD */
+  int b;
+  config_rec *c;
+
+  CHECK_ARGS(cmd, 1);
+  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
+
+  if (find_config(main_server->conf, CONF_PARAM, "LDAPUseTLS", FALSE)) {
+    CONF_ERROR(cmd, "LDAPUseSSL: cannot be used with LDAPUseTLS.");
+  }
+
+  if ((b = get_boolean(cmd, 1)) == -1) {
+    CONF_ERROR(cmd, "LDAPUseSSL: expected a boolean value for first argument.");
+  }
+
+  c = add_config_param(cmd->argv[0], 1, NULL);
+  c->argv[0] = pcalloc(c->pool, sizeof(int));
+  *((int *) c->argv[0]) = b;
+  return PR_HANDLED(cmd);
+#endif /* LDAP_OPT_X_TLS_HARD */
 }
 
 MODRET
@@ -1979,6 +2064,7 @@ ldap_getconf(void)
   char *scope;
   config_rec *c;
   void *ptr;
+  LDAPURLDesc *url;
 
   /* Look up any attr redefinitions (LDAPAttr) before using those variables,
    * such as when generating the default search filters.
@@ -2164,13 +2250,45 @@ ldap_getconf(void)
   if (ptr) {
     ldap_use_tls = *((int *) ptr);
   }
-#endif
+#endif /* LDAP_USE_TLS */
+
+#ifdef LDAP_OPT_X_TLS_HARD
+  ptr = get_param_ptr(main_server->conf, "LDAPUseSSL", FALSE);
+  if (ptr) {
+    ldap_use_ssl = *((int *) ptr);
+  }
+#endif /* LDAP_OPT_X_TLS_HARD */
+
+  url = get_param_ptr(main_server->conf, "LDAPURL", FALSE);
+  if (url) {
+#ifdef LDAP_OPT_X_TLS_HARD
+    if (strcmp(url->lud_scheme, "ldaps") == 0) {
+      ldap_use_ssl = 1;
+    }
+#endif /* LDAP_OPT_X_TLS_HARD */
+
+    if (url->lud_host != NULL) {
+      ldap_server = pstrdup(session.pool, url->lud_host);
+    }
+    if (url->lud_port != 0) {
+      ldap_port = url->lud_port;
+    }
+    if (url->lud_scope != LDAP_SCOPE_DEFAULT) {
+      ldap_search_scope = url->lud_scope;
+    }
+
+    /* We intentionally avoid ldap_free_urldesc()ing url, since it's
+     * attached to the LDAPURL configuration directive and will be used
+     * by other/future callers.
+     */
+  }
 
   return 0;
 }
 
 static conftable ldap_config[] = {
   { "LDAPServer",                          set_ldap_server,               NULL },
+  { "LDAPURL",                             set_ldap_url,                  NULL },
   { "LDAPDNInfo",                          set_ldap_dninfo,               NULL },
   { "LDAPAuthBinds",                       set_ldap_authbinds,            NULL },
   { "LDAPQueryTimeout",                    set_ldap_querytimeout,         NULL },
@@ -2191,6 +2309,7 @@ static conftable ldap_config[] = {
   { "LDAPForceGeneratedHomedir",           set_ldap_forcegenhdir,         NULL },
   { "LDAPDefaultAuthScheme",               set_ldap_defaultauthscheme,    NULL },
   { "LDAPUseTLS",                          set_ldap_usetls,               NULL },
+  { "LDAPUseSSL",                          set_ldap_usessl,               NULL },
   { "LDAPProtocolVersion",                 set_ldap_protoversion,         NULL },
   { "LDAPAttr",                            set_ldap_attr,                 NULL },
   { NULL,                                  NULL,                          NULL }
