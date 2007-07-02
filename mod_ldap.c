@@ -1534,53 +1534,40 @@ handle_ldap_name_gid(cmd_rec *cmd)
 MODRET
 set_ldap_server(cmd_rec *cmd)
 {
-  CHECK_ARGS(cmd, 1);
-  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
-
-  if (find_config(main_server->conf, CONF_PARAM, "LDAPURL", FALSE)) {
-    CONF_ERROR(cmd, "LDAPServer: cannot be used with LDAPURL.");
-  }
-
-  add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
-  return PR_HANDLED(cmd);
-}
-
-MODRET
-set_ldap_url(cmd_rec *cmd)
-{
   LDAPURLDesc *url;
 
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  if (find_config(main_server->conf, CONF_PARAM, "LDAPServer", FALSE)) {
-    CONF_ERROR(cmd, "LDAPURL: cannot be used with LDAPServer.");
-  }
-
-  if (ldap_url_parse(cmd->argv[1], &url) != LDAP_SUCCESS) {
-    CONF_ERROR(cmd, "LDAPURL: must be supplied with a valid LDAP URL.");
-  }
+  if (ldap_is_ldap_url(cmd->argv[1])) {
+    if (ldap_url_parse(cmd->argv[1], &url) != LDAP_SUCCESS) {
+      CONF_ERROR(cmd, "LDAPServer: must be supplied with a valid LDAP URL.");
+    }
 
 #ifdef LDAP_OPT_X_TLS_HARD
-  if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0 &&
-      strncasecmp(cmd->argv[1], "ldaps:", strlen("ldaps:")) != 0) {
+    if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0 &&
+        strncasecmp(cmd->argv[1], "ldaps:", strlen("ldaps:")) != 0) {
 
-    CONF_ERROR(cmd, "Invalid scheme specified by LDAPURL. Valid schemes are 'ldap' or 'ldaps'.");
-  }
+      CONF_ERROR(cmd, "Invalid scheme specified by LDAPServer URL. Valid schemes are 'ldap' or 'ldaps'.");
+    }
 #else /* LDAP_OPT_X_TLS_HARD */
-  if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0) {
-    CONF_ERROR(cmd, "Invalid scheme specified by LDAPURL. Valid schemes are 'ldap'.");
-  }
+    if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0) {
+      CONF_ERROR(cmd, "Invalid scheme specified by LDAPServer URL. Valid schemes are 'ldap'.");
+    }
 #endif /* LDAP_OPT_X_TLS_HARD */
 
-  if (url->lud_dn && strcmp(url->lud_dn, "") != 0) {
-    CONF_ERROR(cmd, "A base DN may not be specified by LDAPURL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
-  }
-  if (url->lud_filter && strcmp(url->lud_filter, "") != 0) {
-    CONF_ERROR(cmd, "A base DN may not be specified by LDAPURL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
+    if (url->lud_dn && strcmp(url->lud_dn, "") != 0) {
+      CONF_ERROR(cmd, "A base DN may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
+    }
+    if (url->lud_filter && strcmp(url->lud_filter, "") != 0) {
+      CONF_ERROR(cmd, "A base DN may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
+    }
+
+    add_config_param_str(cmd->argv[0], 2, "url", url);
+  } else {
+    add_config_param_str(cmd->argv[0], 2, "host", cmd->argv[1]);
   }
 
-  add_config_param_str(cmd->argv[0], 1, url);
   return PR_HANDLED(cmd);
 }
 
@@ -2093,11 +2080,6 @@ ldap_getconf(void)
     } while ((c = find_config_next(c, c->next, CONF_PARAM, "LDAPAttr", FALSE)));
   }
 
-  /* If ldap_server is NULL, ldap_init() will connect to the LDAP SDK's
-   * default.
-   */
-  ldap_server = (char *)get_param_ptr(main_server->conf, "LDAPServer", FALSE);
-
   if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPDNInfo", FALSE)) != NULL) {
     ldap_dn = pstrdup(session.pool, c->argv[0]);
     ldap_dnpass = pstrdup(session.pool, c->argv[1]);
@@ -2259,28 +2241,43 @@ ldap_getconf(void)
   }
 #endif /* LDAP_OPT_X_TLS_HARD */
 
-  url = get_param_ptr(main_server->conf, "LDAPURL", FALSE);
-  if (url) {
+  /* If LDAPServer isn't present, we'll leave ldap_server NULL, and
+   * ldap_init() will connect to the LDAP SDK's default.
+   */
+  if ((c = find_config(main_server->conf, CONF_PARAM, "LDAPServer", FALSE)) != NULL) {
+    if (strcmp(c->argv[1], "url") == 0) {
+      url = c->argv[2];
+      if (url) {
 #ifdef LDAP_OPT_X_TLS_HARD
-    if (strcmp(url->lud_scheme, "ldaps") == 0) {
-      ldap_use_ssl = 1;
-    }
+        if (strcmp(url->lud_scheme, "ldaps") == 0) {
+          ldap_use_ssl = 1;
+        }
 #endif /* LDAP_OPT_X_TLS_HARD */
 
-    if (url->lud_host != NULL) {
-      ldap_server = pstrdup(session.pool, url->lud_host);
-    }
-    if (url->lud_port != 0) {
-      ldap_port = url->lud_port;
-    }
-    if (url->lud_scope != LDAP_SCOPE_DEFAULT) {
-      ldap_search_scope = url->lud_scope;
-    }
+        if (url->lud_host != NULL) {
+          ldap_server = pstrdup(session.pool, url->lud_host);
+        }
+        if (url->lud_port != 0) {
+          ldap_port = url->lud_port;
+        }
+        if (url->lud_scope != LDAP_SCOPE_DEFAULT) {
+          ldap_search_scope = url->lud_scope;
+        }
 
-    /* We intentionally avoid ldap_free_urldesc()ing url, since it's
-     * attached to the LDAPURL configuration directive and will be used
-     * by other/future callers.
-     */
+        /* We intentionally avoid ldap_free_urldesc()ing url, since it's
+         * attached to the LDAPServer configuration directive and will be used
+         * by other/future callers.
+         */
+      }
+    } else if (strcmp(c->argv[1], "host") == 0) {
+      ldap_server = c->argv[2];
+    } else {
+      /* This should never happen, since the configuration handler for
+       * LDAPServer only passes url or host, but we'll be defensive.
+       */
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": unexpected LDAPServer type.");
+      return -1;
+    }
   }
 
   return 0;
@@ -2288,7 +2285,6 @@ ldap_getconf(void)
 
 static conftable ldap_config[] = {
   { "LDAPServer",                          set_ldap_server,               NULL },
-  { "LDAPURL",                             set_ldap_url,                  NULL },
   { "LDAPDNInfo",                          set_ldap_dninfo,               NULL },
   { "LDAPAuthBinds",                       set_ldap_authbinds,            NULL },
   { "LDAPQueryTimeout",                    set_ldap_querytimeout,         NULL },
