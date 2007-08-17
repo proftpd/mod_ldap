@@ -22,7 +22,7 @@
  */
 
 /*
- * mod_ldap v2.8.17-20070707
+ * mod_ldap v2.8.17
  *
  * Thanks for patches go to (in alphabetical order):
  *
