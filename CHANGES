@@ -2,6 +2,9 @@ v2.8.18:
 * Remove all local caching code in favor of the recently added caching in
   the ProFTPD Auth layer.
 * Silence some compiler warnings.
+* To verify non-crypt() password hashes locally with OpenSSL, it is no
+  longer necessary to edit mod_ldap.c to enable HAVE_OPENSSL. Instead,
+  build ProFTPD with the --enable-openssl argument to configure.
 
 v2.8.17:
 * Use non-deprecated LDAP API functions if the LDAP SDK is new enough to
