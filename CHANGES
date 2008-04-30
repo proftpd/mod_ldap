@@ -1,6 +1,8 @@
 v2.8.19:
 * Fix compilation with old LDAP SDKs (LDAP_API_VERSION < 2000). Thanks to
   Saju Paul <saju.paul@messageway.com>.
+* Define LDAP_SCOPE_DEFAULT if not defined by the SDK, fixing compilation
+  with (recent?) Sun LDAP headers.
 
 v2.8.18:
 * Remove all local caching code in favor of the recently added caching in
