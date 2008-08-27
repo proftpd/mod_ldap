@@ -3,6 +3,12 @@ v2.8.19:
   Saju Paul <saju.paul@messageway.com>.
 * Define LDAP_SCOPE_DEFAULT if not defined by the SDK, fixing compilation
   with (recent?) Sun LDAP headers.
+* Use the configured ldap_port in "connected..." debug message, not
+  LDAP_PORT.
+* Fix segfaults on client connect when an LDAP URL is used as an argument
+  to the LDAPServer directive. (Bug #3097)
+* Automatically enable LDAP TLS support based on a best guess as to whether
+  the installed LDAP SDK supports it.
 
 v2.8.18:
 * Remove all local caching code in favor of the recently added caching in
