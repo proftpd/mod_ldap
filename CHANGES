@@ -9,6 +9,8 @@ v2.8.19:
   to the LDAPServer directive. (Bug #3097)
 * Automatically enable LDAP TLS support based on a best guess as to whether
   the installed LDAP SDK supports it.
+* Fixed missing ldap_init() -> ldap_initialize() when updating for latest
+  LDAP C API. Fixes segfaults on (some?) 64-bit systems. (Bug #3046)
 
 v2.8.18:
 * Remove all local caching code in favor of the recently added caching in
