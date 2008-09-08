@@ -1,4 +1,4 @@
-mod_ldap v2.8.17
+mod_ldap v2.8.19
 ================
 
 mod_ldap is a module that allows proftpd to do user authentication and
