@@ -48,7 +48,7 @@
  *                                                   LDAPDefaultAuthScheme
  *
  *
- * $Id: mod_ldap.c,v 1.54 2007/07/02 23:20:31 jwm Exp $
+ * $Id: mod_ldap.c,v 1.66 2008/09/08 19:26:10 jwm Exp $
  * $Libraries: -lldap -llber$
  */
 
@@ -1395,7 +1395,7 @@ set_ldap_server(cmd_rec *cmd)
       CONF_ERROR(cmd, "A base DN may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
     }
     if (url->lud_filter && strcmp(url->lud_filter, "") != 0) {
-      CONF_ERROR(cmd, "A base DN may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
+      CONF_ERROR(cmd, "A search filter may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
     }
 
     ldap_free_urldesc(url);
