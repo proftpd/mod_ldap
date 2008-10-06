@@ -1375,6 +1375,13 @@ set_ldap_server(cmd_rec *cmd)
       CONF_ERROR(cmd, "LDAPServer: must be supplied with a valid LDAP URL.");
     }
 
+    if (find_config(main_server->conf, CONF_PARAM, "LDAPSearchScope", FALSE)) {
+      CONF_ERROR(cmd, "LDAPSearchScope cannot be used when LDAPServer specifies a URL; specify a search scope in the LDAPServer URL instead.");
+    }
+    if (find_config(main_server->conf, CONF_PARAM, "LDAPUseSSL", FALSE)) {
+      CONF_ERROR(cmd, "LDAPUseSSL cannot be used when LDAPServer specifies a URL; specify the desired scheme (ldap:// or ldaps://) in the LDAPServer URL instead.");
+    }
+
 #ifdef LDAP_OPT_X_TLS_HARD
     if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0 &&
         strncasecmp(cmd->argv[1], "ldaps:", strlen("ldaps:")) != 0) {
@@ -1455,8 +1462,15 @@ set_ldap_querytimeout(cmd_rec *cmd)
 MODRET
 set_ldap_searchscope(cmd_rec *cmd)
 {
+  config_rec *c;
+
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
+
+  c = find_config(main_server->conf, CONF_PARAM, "LDAPServer", FALSE);
+  if (c && ldap_is_ldap_url(c->argv[0])) {
+    CONF_ERROR(cmd, "LDAPSearchScope cannot be used when LDAPServer specifies a URL; specify a search scope in the LDAPServer URL instead.");
+  }
 
   add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
   return PR_HANDLED(cmd);
@@ -1805,6 +1819,10 @@ set_ldap_usessl(cmd_rec *cmd)
 
   if (find_config(main_server->conf, CONF_PARAM, "LDAPUseTLS", FALSE)) {
     CONF_ERROR(cmd, "LDAPUseSSL: cannot be used with LDAPUseTLS.");
+  }
+  c = find_config(main_server->conf, CONF_PARAM, "LDAPServer", FALSE);
+  if (c && ldap_is_ldap_url(c->argv[0])) {
+    CONF_ERROR(cmd, "LDAPUseSSL cannot be used when LDAPServer specifies a URL; specify the desired scheme (ldap:// or ldaps://) in the LDAPServer URL instead.");
   }
 
   if ((b = get_boolean(cmd, 1)) == -1) {
