@@ -1081,7 +1081,8 @@ MODRET
 handle_ldap_is_auth(cmd_rec *cmd)
 {
   const char *username = cmd->argv[0];
-  char *pass_attrs[] = {ldap_attr_userpassword, ldap_attr_homedirectory, NULL};
+  char *pass_attrs[] = {ldap_attr_userpassword, ldap_attr_homedirectory,
+                        ldap_attr_uid, NULL};
   struct passwd *pw;
 
   if (!ldap_doauth) {
@@ -2119,6 +2120,14 @@ ldap_getconf(void)
   return 0;
 }
 
+static int ldap_mod_init(void) {
+  pr_log_debug(DEBUG2, MOD_LDAP_VERSION
+    ": compiled using LDAP vendor '%s', LDAP API version %lu",
+    LDAP_VENDOR_NAME, (unsigned long) LDAP_API_VERSION);
+
+  return 0;
+}
+
 static conftable ldap_config[] = {
   { "LDAPServer",                          set_ldap_server,               NULL },
   { "LDAPDNInfo",                          set_ldap_dninfo,               NULL },
@@ -2178,6 +2187,7 @@ module ldap_module = {
   ldap_config,         /* Configuration directive table */
   ldap_cmdtab,         /* Command handlers */
   ldap_auth,           /* Authentication handlers */
-  NULL, ldap_getconf,  /* Initialization functions */
+  ldap_mod_init,       /* Initialization functions */
+  ldap_getconf,
   MOD_LDAP_VERSION
 };
