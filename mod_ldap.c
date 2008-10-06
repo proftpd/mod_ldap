@@ -22,7 +22,7 @@
  */
 
 /*
- * mod_ldap v2.8.19
+ * mod_ldap v2.8.20-20081006
  *
  * Thanks for patches go to (in alphabetical order):
  *
@@ -59,7 +59,7 @@
 #include "conf.h"
 #include "privs.h"
 
-#define MOD_LDAP_VERSION	"mod_ldap/2.8.19"
+#define MOD_LDAP_VERSION	"mod_ldap/2.8.19-20081006"
 
 #if PROFTPD_VERSION_NUMBER < 0x0001021002
 # error MOD_LDAP_VERSION " requires ProFTPD 1.2.10rc2 or later"
@@ -71,10 +71,6 @@
 
 #include <errno.h>
 #include <ctype.h>     /* isdigit()   */
-#include <stdio.h>     /* snprintf()  */
-#include <string.h>    /* various :-) */
-#include <sys/types.h> /* seteuid()   */
-#include <unistd.h>    /* seteuid()   */
 
 #include <lber.h>
 #include <ldap.h>
@@ -2090,10 +2086,7 @@ ldap_getconf(void)
         ldap_search_scope = url->lud_scope;
       }
 
-      /* We intentionally avoid ldap_free_urldesc()ing url, since it's
-       * attached to the LDAPServer configuration directive and will be used
-       * by other/future callers.
-       */
+      ldap_free_urldesc(url);
     } else {
       ldap_server_url = pstrcat(session.pool,
         "ldap://", c->argv[0], "/", NULL);
