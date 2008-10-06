@@ -1081,8 +1081,7 @@ MODRET
 handle_ldap_is_auth(cmd_rec *cmd)
 {
   const char *username = cmd->argv[0];
-  char *pass_attrs[] = {ldap_attr_userpassword, ldap_attr_homedirectory,
-                        ldap_attr_uid, NULL};
+  char *pass_attrs[] = {ldap_attr_userpassword, ldap_attr_homedirectory, NULL};
   struct passwd *pw;
 
   if (!ldap_doauth) {
