@@ -48,7 +48,7 @@
  *                                                   LDAPDefaultAuthScheme
  *
  *
- * $Id: mod_ldap.c,v 1.66 2008/09/08 19:26:10 jwm Exp $
+ * $Id: mod_ldap.c,v 1.74 2009/01/05 17:29:50 castaglia Exp $
  * $Libraries: -lldap -llber$
  */
 
@@ -1146,10 +1146,16 @@ handle_ldap_check(cmd_rec *cmd)
 #if defined(HAVE_OPENSSL) || defined(PR_USE_OPENSSL)
   EVP_MD_CTX EVP_Context;
   const EVP_MD *md;
-  int md_len;
+  unsigned int md_len;
   unsigned char md_value[EVP_MAX_MD_SIZE];
   EVP_ENCODE_CTX EVP_Encode;
-  char buff[EVP_MAX_KEY_LENGTH];
+
+  /* According to RATS, the output buffer (buff) for EVP_EncodeBlock() needs
+   * to be 4/3 the size of the input buffer (md_val).  Let's make it easy, and
+   * use an output buffer that's twice the size of the input buffer.
+   */
+  unsigned char buff[EVP_MAX_MD_SIZE * 2];
+
 #endif /* !HAVE_OPENSSL and !PR_USE_OPENSSL */
 
   if (!ldap_doauth) {
@@ -1270,10 +1276,11 @@ handle_ldap_check(cmd_rec *cmd)
     EVP_DigestFinal(&EVP_Context, md_value, &md_len);
 
     /* Base64 Encoding */
+    memset(buff, '\0', sizeof(buff));
     EVP_EncodeInit(&EVP_Encode);
-    EVP_EncodeBlock(buff, md_value, md_len);
+    EVP_EncodeBlock(buff, md_value, (int) md_len);
 
-    if (strcmp(buff, cryptpass + encname_len + 2) != 0) {
+    if (strcmp((char *) buff, cryptpass + encname_len + 2) != 0) {
       return PR_ERROR(cmd);
     }
   }
