@@ -5,6 +5,10 @@ v2.8.20:
 * When using OpenSSL for local password verification (as opposed to
   'LDAPAuthBinds on'), make the Base64 encoding buffer larger to ensure
   we account for expansion resulting from the encoding.
+* Retrieve all LDAP attributes when calling pr_ldap_user_lookup() since
+  it will need various attributes (to perform home directory generation,
+  for one). Thanks to Nikos Voutsinas <nvoutsin@noc.uoa.gr>.
+  http://forums.proftpd.org/smf/index.php/topic,3562.0.html
 
 v2.8.19:
 * Fix compilation with old LDAP SDKs (LDAP_API_VERSION < 2000). Thanks to
