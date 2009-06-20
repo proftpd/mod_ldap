@@ -1,7 +1,0 @@
-objectclass posixGroup
-    requires
-        gidNumber
-    allows
-        userPassword,
-        memberUid,
-        description

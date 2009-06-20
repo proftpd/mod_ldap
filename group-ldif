@@ -1,6 +1,6 @@
-dn: cn=mygroup, dc=horde, dc=net
+dn: cn=groupname,dc=example,dc=com
 objectclass: posixGroup
-cn: mygroup
+cn: groupname
 gidNumber: 100
 memberUid: user1
 memberUid: user2

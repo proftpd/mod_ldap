@@ -1,9 +1,9 @@
-dn: uid=jwm, dc=horde, dc=net
+dn: uid=user,dc=example,dc=com
 objectclass: posixAccount
-cn: John Morrissey
-uid: jwm
+cn: User Name
+uid: user
 uidNumber: 2000
 gidNumber: 100
-homeDirectory: /home/jwm
+homeDirectory: /home/user
 userPassword: {crypt}*
 loginShell: /bin/bash
