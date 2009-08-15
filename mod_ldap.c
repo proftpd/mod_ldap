@@ -48,7 +48,7 @@
  *                                                   LDAPDefaultAuthScheme
  *
  *
- * $Id: mod_ldap.c,v 1.74 2009/01/05 17:29:50 castaglia Exp $
+ * $Id$
  * $Libraries: -lldap -llber$
  */
 
