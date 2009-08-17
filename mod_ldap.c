@@ -2104,7 +2104,7 @@ ldap_getconf(void)
       }
 #endif /* LDAP_OPT_X_TLS_HARD */
 
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#if !(defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905))
       /* Need to keep parsed host and port for pre-2000 ldap_init(). */
       if (url->lud_host != NULL) {
         ldap_server = pstrdup(session.pool, url->lud_host);
@@ -2112,7 +2112,7 @@ ldap_getconf(void)
       if (url->lud_port != 0) {
         ldap_port = url->lud_port;
       }
-#endif /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
+#endif /* !(LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905) */
 
       if (url->lud_scope != LDAP_SCOPE_DEFAULT) {
         ldap_search_scope = url->lud_scope;
@@ -2123,7 +2123,7 @@ ldap_getconf(void)
       ldap_server_url = pstrcat(session.pool,
         "ldap://", c->argv[0], "/", NULL);
 
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#if !(defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905))
       ldap_server = pstrdup(session.pool, c->argv[0]);
       ldap_port = LDAP_PORT;
 #endif /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
