@@ -79,6 +79,8 @@
 # define LDAP_UNBIND(ld) (ldap_unbind_ext_s(ld, NULL, NULL))
 #else
 # define LDAP_UNBIND(ld) (ldap_unbind_s(ld))
+static char *ldap_server;
+static int ldap_port = LDAP_PORT;
 #endif
 
 #if LDAP_API_VERSION >= 2000
@@ -91,9 +93,6 @@
    ldap_search_ext_s(ld, base, scope, filter, attrs, 0, NULL, NULL, \
                      timeout, sizelimit, res)
 #else /* LDAP_API_VERSION >= 2000 */
-static char *ldap_server;
-static int ldap_port = LDAP_PORT;
-
 # define LDAP_VALUE_T char
 # define LDAP_GET_VALUES(ld, entry, attr) ldap_get_values(ld, entry, attr)
 # define LDAP_VALUE(values, i) (values[i])
