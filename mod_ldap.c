@@ -22,7 +22,7 @@
  */
 
 /*
- * mod_ldap v2.8.20
+ * mod_ldap v2.9.0-pre
  *
  * Thanks for patches go to (in alphabetical order):
  *
@@ -59,7 +59,7 @@
 #include "conf.h"
 #include "privs.h"
 
-#define MOD_LDAP_VERSION	"mod_ldap/2.8.20"
+#define MOD_LDAP_VERSION	"mod_ldap/2.9.0-pre"
 
 #if PROFTPD_VERSION_NUMBER < 0x0001021002
 # error MOD_LDAP_VERSION " requires ProFTPD 1.2.10rc2 or later"
@@ -69,8 +69,8 @@
 # include <crypt.h>
 #endif
 
+#include <ctype.h> /* isdigit()   */
 #include <errno.h>
-#include <ctype.h>     /* isdigit()   */
 
 #include <lber.h>
 #include <ldap.h>
@@ -189,8 +189,9 @@ pr_ldap_unbind(void)
   ret = LDAP_UNBIND(ld);
   if (ret != LDAP_SUCCESS) {
     pr_log_pri(PR_LOG_NOTICE, MOD_LDAP_VERSION ": pr_ldap_unbind(): unbind failed: %s", ldap_err2string(ret));
+  } else {
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": successfully unbound");
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": successfully unbound");
 
   ld = NULL;
 }
@@ -224,15 +225,9 @@ pr_ldap_connect(LDAP **conn_ld, int do_bind)
 #endif /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
 
 
-  version = -1;
-  switch (ldap_protocol_version) {
-    case 2:
-      version = LDAP_VERSION2;
-      break;
-    case 3:
-    default:
-      version = LDAP_VERSION3;
-      break;
+  version = LDAP_VERSION3;
+  if (ldap_protocol_version == 2) {
+    version = LDAP_VERSION2;
   }
 
   ret = ldap_set_option(*conn_ld, LDAP_OPT_PROTOCOL_VERSION, &version);
@@ -278,6 +273,7 @@ pr_ldap_connect(LDAP **conn_ld, int do_bind)
 
     if (ret != LDAP_SUCCESS) {
       pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): bind as %s failed: %s", ldap_dn, ldap_err2string(ret));
+      pr_ldap_unbind();
       return -1;
     }
     pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": successfully bound as %s with password %s", ldap_dn, ldap_dnpass);
@@ -287,6 +283,8 @@ pr_ldap_connect(LDAP **conn_ld, int do_bind)
   ret = ldap_set_option(*conn_ld, LDAP_OPT_DEREF, (void *)&ldap_dereference);
   if (ret != LDAP_OPT_SUCCESS) {
     pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_set_option() unable to set dereference to %d: %s", ldap_dereference, ldap_err2string(ret));
+    pr_ldap_unbind();
+    return -1;
   }
 #else
   deref_ld->ld_deref = ldap_dereference;
