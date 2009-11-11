@@ -224,7 +224,6 @@ pr_ldap_connect(LDAP **conn_ld, int do_bind)
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s:%d", ldap_server, ldap_port);
 #endif /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
 
-
   version = LDAP_VERSION3;
   if (ldap_protocol_version == 2) {
     version = LDAP_VERSION2;
@@ -395,7 +394,7 @@ pr_ldap_user_lookup(pool *p,
   e = ldap_first_entry(ld, result);
   if (!e) {
     ldap_msgfree(result);
-    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s", filter);
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s under base DN %s", filter, basedn);
     return NULL; /* No LDAP entries for this user */
   }
 
