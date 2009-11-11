@@ -168,9 +168,6 @@ static gid_t ldap_defaultgid = -1;
 #ifdef LDAP_OPT_X_TLS
 static int ldap_use_tls = 0;
 #endif
-#ifdef LDAP_OPT_X_TLS_HARD
-static int ldap_use_ssl = 0;
-#endif
 
 static LDAP *ld = NULL;
 array_header *cached_quota = NULL;
@@ -200,9 +197,6 @@ static int
 pr_ldap_connect(LDAP **conn_ld, int do_bind)
 {
   int ret, version;
-#ifdef LDAP_OPT_X_TLS_HARD
-  int sslenable = LDAP_OPT_X_TLS_HARD;
-#endif
 #if LDAP_API_VERSION >= 2000
   struct berval bindcred;
 #endif
@@ -236,18 +230,6 @@ pr_ldap_connect(LDAP **conn_ld, int do_bind)
     return -1;
   }
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set protocol version to %d", version);
-
-#ifdef LDAP_OPT_X_TLS_HARD
-  if (ldap_use_ssl) {
-    ret = ldap_set_option(*conn_ld, LDAP_OPT_X_TLS, &sslenable);
-    if (ret != LDAP_OPT_SUCCESS) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): couldn't enable SSL: %s", ldap_err2string(ret));
-      pr_ldap_unbind();
-      return -1;
-    }
-    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": enabled SSL.");
-  }
-#endif /* LDAP_OPT_X_TLS_HARD */
 
 #ifdef LDAP_OPT_X_TLS
   if (ldap_use_tls == 1) {
@@ -1408,9 +1390,6 @@ set_ldap_server(cmd_rec *cmd)
     if (find_config(main_server->conf, CONF_PARAM, "LDAPSearchScope", FALSE)) {
       CONF_ERROR(cmd, "LDAPSearchScope cannot be used when LDAPServer specifies a URL; specify a search scope in the LDAPServer URL instead.");
     }
-    if (find_config(main_server->conf, CONF_PARAM, "LDAPUseSSL", FALSE)) {
-      CONF_ERROR(cmd, "LDAPUseSSL cannot be used when LDAPServer specifies a URL; specify the desired scheme (ldap:// or ldaps://) in the LDAPServer URL instead.");
-    }
 
 #ifdef LDAP_OPT_X_TLS_HARD
     if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0 &&
@@ -1820,10 +1799,6 @@ set_ldap_usetls(cmd_rec *cmd)
   CHECK_ARGS(cmd, 1);
   CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
 
-  if (find_config(main_server->conf, CONF_PARAM, "LDAPUseSSL", FALSE)) {
-    CONF_ERROR(cmd, "LDAPUseTLS: cannot be used with LDAPUseSSL.");
-  }
-
   if ((b = get_boolean(cmd, 1)) == -1) {
     CONF_ERROR(cmd, "LDAPUseTLS: expected a boolean value for first argument.");
   }
@@ -1833,37 +1808,6 @@ set_ldap_usetls(cmd_rec *cmd)
   *((int *) c->argv[0]) = b;
   return PR_HANDLED(cmd);
 #endif /* LDAP_OPT_X_TLS */
-}
-
-MODRET
-set_ldap_usessl(cmd_rec *cmd)
-{
-#ifndef LDAP_OPT_X_TLS_HARD
-  CONF_ERROR(cmd, "LDAPUseSSL: Your LDAP libraries do not define LDAP_OPT_X_TLS_HARD to enable LDAP SSL support.");
-#else /* LDAP_OPT_X_TLS_HARD */
-  int b;
-  config_rec *c;
-
-  CHECK_ARGS(cmd, 1);
-  CHECK_CONF(cmd, CONF_ROOT|CONF_VIRTUAL|CONF_GLOBAL);
-
-  if (find_config(main_server->conf, CONF_PARAM, "LDAPUseTLS", FALSE)) {
-    CONF_ERROR(cmd, "LDAPUseSSL: cannot be used with LDAPUseTLS.");
-  }
-  c = find_config(main_server->conf, CONF_PARAM, "LDAPServer", FALSE);
-  if (c && ldap_is_ldap_url(c->argv[0])) {
-    CONF_ERROR(cmd, "LDAPUseSSL cannot be used when LDAPServer specifies a URL; specify the desired scheme (ldap:// or ldaps://) in the LDAPServer URL instead.");
-  }
-
-  if ((b = get_boolean(cmd, 1)) == -1) {
-    CONF_ERROR(cmd, "LDAPUseSSL: expected a boolean value for first argument.");
-  }
-
-  c = add_config_param(cmd->argv[0], 1, NULL);
-  c->argv[0] = pcalloc(c->pool, sizeof(int));
-  *((int *) c->argv[0]) = b;
-  return PR_HANDLED(cmd);
-#endif /* LDAP_OPT_X_TLS_HARD */
 }
 
 MODRET
@@ -2095,13 +2039,6 @@ ldap_getconf(void)
   }
 #endif /* LDAP_OPT_X_TLS */
 
-#ifdef LDAP_OPT_X_TLS_HARD
-  ptr = get_param_ptr(main_server->conf, "LDAPUseSSL", FALSE);
-  if (ptr) {
-    ldap_use_ssl = *((int *) ptr);
-  }
-#endif /* LDAP_OPT_X_TLS_HARD */
-
   /* If LDAPServer isn't present, we'll leave ldap_server_url NULL, and
    * ldap_initialize() will connect to the LDAP SDK's default.
    */
@@ -2113,12 +2050,6 @@ ldap_getconf(void)
       }
 
       ldap_server_url = pstrdup(session.pool, c->argv[0]);
-
-#ifdef LDAP_OPT_X_TLS_HARD
-      if (strcmp(url->lud_scheme, "ldaps") == 0) {
-        ldap_use_ssl = 1;
-      }
-#endif /* LDAP_OPT_X_TLS_HARD */
 
 #if !(defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905))
       /* Need to keep parsed host and port for pre-2000 ldap_init(). */
@@ -2179,7 +2110,6 @@ static conftable ldap_config[] = {
   { "LDAPForceGeneratedHomedir",           set_ldap_forcegenhdir,         NULL },
   { "LDAPDefaultAuthScheme",               set_ldap_defaultauthscheme,    NULL },
   { "LDAPUseTLS",                          set_ldap_usetls,               NULL },
-  { "LDAPUseSSL",                          set_ldap_usessl,               NULL },
   { "LDAPProtocolVersion",                 set_ldap_protoversion,         NULL },
   { "LDAPAttr",                            set_ldap_attr,                 NULL },
   { NULL,                                  NULL,                          NULL }
