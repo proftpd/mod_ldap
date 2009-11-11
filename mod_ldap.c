@@ -301,64 +301,26 @@ pr_ldap_connect(LDAP **conn_ld, int do_bind)
 static char *
 pr_ldap_interpolate_filter(pool *p, char *template, const char *value)
 {
-  char *filter;
-  int value_len, malloc_adjust, template_pos, filter_pos;
+  char *escaped_value, *filter;
 
-  value_len = strlen(value);
-
-  malloc_adjust = 0;
-  template_pos = 0;
-  while (template[template_pos] != '\0') {
-    switch (template[template_pos]) {
-    case '%':
-      if (template[template_pos + 1] == 'u' ||
-          template[template_pos + 1] == 'v') {
-
-        malloc_adjust -= 2;
-        malloc_adjust += value_len;
-      }
-      break;
-
-    case '\':
-    case '*'
-    case '(':
-    case ')':
-    case '\0':
-      malloc_adjust += 1;
-    }
-
-    ++template_pos;
+  escaped_value = sreplace(p, value,
+    "\\", "\\\\",
+    "*", "\\*",
+    "(", "\\(",
+    ")", "\\)",
+    NULL
+  );
+  if (!escaped_value) {
+    return NULL;
   }
 
-  /* +1 for the NULL */
-  filter = pcalloc(p, strlen(template) + malloc_adjust + 1);
-
-  template_pos = 0;
-  filter_pos = 0;
-  while (template[template_pos] != '\0') {
-    /* Replace %u or %v with value. */
-    switch (template[template_pos]) {
-    case '%':
-      if (template[template_pos + 1] == 'u' ||
-          template[template_pos + 1] == 'v') {
-
-        strcat(filter, value);
-        filter_pos += value_len;
-        template_pos += 2;
-      }
-      break;
-
-    case '\':
-    case '*'
-    case '(':
-    case ')':
-    case '\0':
-      filter[filter_pos++] = '\';
-      /* Fall through. */
-
-    default:
-      filter[filter_pos++] = template[template_pos++];
-    }
+  filter = sreplace(p, template,
+    "%u", escaped_value,
+    "%v", escaped_value,
+    NULL
+  );
+  if (!filter) {
+    return NULL;
   }
 
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": generated filter %s from template %s and value %s", filter, template, value);
@@ -393,6 +355,9 @@ pr_ldap_user_lookup(pool *p,
   }
 
   filter = pr_ldap_interpolate_filter(p, filter_template, replace);
+  if (!filter) {
+    return NULL;
+  }
 
   ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, ldap_attrs,
     &ldap_querytimeout_tp, 2, &result);
@@ -615,6 +580,9 @@ pr_ldap_group_lookup(pool *p,
   }
 
   filter = pr_ldap_interpolate_filter(p, filter_template, replace);
+  if (!filter) {
+    return NULL;
+  }
 
   ret = LDAP_SEARCH(ld, ldap_gid_basedn, ldap_search_scope, filter,
     ldap_attrs, &ldap_querytimeout_tp, 2, &result);
@@ -737,6 +705,9 @@ pr_ldap_quota_lookup(pool *p, char *filter_template, const char *replace,
   }
 
   filter = pr_ldap_interpolate_filter(p, filter_template, replace);
+  if (!filter) {
+    return FALSE;
+  }
 
   ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, attrs,
     &ldap_querytimeout_tp, 2, &result);
@@ -834,9 +805,15 @@ pr_ldap_getgrgid(pool *p, gid_t gid)
 static struct passwd *
 pr_ldap_getpwnam(pool *p, const char *username)
 {
-  char *name_attrs[] = {ldap_attr_userpassword, ldap_attr_uid,
+  char *filter,
+       *name_attrs[] = {ldap_attr_userpassword, ldap_attr_uid,
                         ldap_attr_uidnumber, ldap_attr_gidnumber,
                         ldap_attr_homedirectory, ldap_attr_loginshell, NULL};
+
+  filter = pr_ldap_interpolate_filter(p, ldap_auth_basedn, username);
+  if (!filter) {
+    return NULL;
+  }
 
   /* pr_ldap_user_lookup() returns NULL if it doesn't find an entry or
    * encounters an error. If everything goes all right, it returns a
@@ -858,8 +835,7 @@ pr_ldap_getpwnam(pool *p, const char *username)
    * fetched userPassword, auth binds would never be done because
    * handle_ldap_check() would always get a crypted password.
    */
-  return pr_ldap_user_lookup(p, ldap_auth_filter, username,
-    pr_ldap_interpolate_filter(p, ldap_auth_basedn, username),
+  return pr_ldap_user_lookup(p, ldap_auth_filter, username, filter,
     ldap_authbinds ? name_attrs + 1 : name_attrs,
     ldap_authbinds ? &ldap_authbind_dn : NULL);
 }
@@ -1038,7 +1014,11 @@ handle_ldap_getgroups(cmd_rec *cmd)
     }
   }
 
-  filter = pr_ldap_interpolate_filter(cmd->tmp_pool, ldap_group_member_filter, cmd->argv[0]);
+  filter = pr_ldap_interpolate_filter(cmd->tmp_pool,
+    ldap_group_member_filter, cmd->argv[0]);
+  if (!filter) {
+    return NULL;
+  }
 
   ret = LDAP_SEARCH(ld, ldap_gid_basedn, ldap_search_scope, filter, w,
     &ldap_querytimeout_tp, 0, &result);
@@ -1116,13 +1096,20 @@ MODRET
 handle_ldap_is_auth(cmd_rec *cmd)
 {
   const char *username = cmd->argv[0];
-  char *pass_attrs[] = {ldap_attr_userpassword, ldap_attr_uid,
+  char *filter,
+       *pass_attrs[] = {ldap_attr_userpassword, ldap_attr_uid,
                         ldap_attr_uidnumber, ldap_attr_gidnumber,
                         ldap_attr_homedirectory, ldap_attr_loginshell, NULL};
   struct passwd *pw;
 
   if (!ldap_doauth) {
     return PR_DECLINED(cmd);
+  }
+
+  filter = pr_ldap_interpolate_filter(cmd->tmp_pool,
+    ldap_auth_basedn, username);
+  if (!filter) {
+    return NULL;
   }
 
   /* If anything here fails hard (IOW, we've found an LDAP entry for the
@@ -1133,8 +1120,8 @@ handle_ldap_is_auth(cmd_rec *cmd)
    * this way, then by all means, let me know.
    */
 
-  pw = pr_ldap_user_lookup(cmd->tmp_pool, ldap_auth_filter, username,
-    pr_ldap_interpolate_filter(cmd->tmp_pool, ldap_auth_basedn, username),
+  pw = pr_ldap_user_lookup(cmd->tmp_pool,
+    ldap_auth_filter, username, filter,
     ldap_authbinds ? pass_attrs + 1 : pass_attrs,
     ldap_authbinds ? &ldap_authbind_dn : NULL);
   if (!pw) {
