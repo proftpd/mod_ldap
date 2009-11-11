@@ -1391,17 +1391,17 @@ set_ldap_server(cmd_rec *cmd)
       CONF_ERROR(cmd, "LDAPSearchScope cannot be used when LDAPServer specifies a URL; specify a search scope in the LDAPServer URL instead.");
     }
 
-#ifdef LDAP_OPT_X_TLS_HARD
+#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
     if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0 &&
         strncasecmp(cmd->argv[1], "ldaps:", strlen("ldaps:")) != 0) {
 
       CONF_ERROR(cmd, "Invalid scheme specified by LDAPServer URL. Valid schemes are 'ldap' or 'ldaps'.");
     }
-#else /* LDAP_OPT_X_TLS_HARD */
+#else /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
     if (strncasecmp(cmd->argv[1], "ldap:", strlen("ldap:")) != 0) {
       CONF_ERROR(cmd, "Invalid scheme specified by LDAPServer URL. Valid schemes are 'ldap'.");
     }
-#endif /* LDAP_OPT_X_TLS_HARD */
+#endif /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
 
     if (url->lud_dn && strcmp(url->lud_dn, "") != 0) {
       CONF_ERROR(cmd, "A base DN may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
