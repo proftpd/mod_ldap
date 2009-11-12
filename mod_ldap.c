@@ -1924,6 +1924,12 @@ set_ldap_usetls(cmd_rec *cmd)
 }
 
 MODRET
+set_ldap_usessl(cmd_rec *cmd)
+{
+  pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": LDAPUseSSL did not have the intended effect and has been removed. Please remove this directive from your configuration, as it will be removed in future versions of mod_ldap and ProFTPD will fail to start.");
+}
+
+MODRET
 set_ldap_protoversion(cmd_rec *cmd)
 {
   int i = 0;
@@ -2195,6 +2201,7 @@ static conftable ldap_config[] = {
   { "LDAPForceGeneratedHomedir",           set_ldap_forcegenhdir,         NULL },
   { "LDAPDefaultAuthScheme",               set_ldap_defaultauthscheme,    NULL },
   { "LDAPUseTLS",                          set_ldap_usetls,               NULL },
+  { "LDAPUseSSL",                          set_ldap_usessl,               NULL },
   { "LDAPProtocolVersion",                 set_ldap_protoversion,         NULL },
   { "LDAPAttr",                            set_ldap_attr,                 NULL },
   { NULL,                                  NULL,                          NULL }
