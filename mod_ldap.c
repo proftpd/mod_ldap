@@ -373,7 +373,7 @@ pr_ldap_interpolate_filter(pool *p, char *template, const char *value)
 {
   char *escaped_value, *filter;
 
-  escaped_value = sreplace(p, value,
+  escaped_value = sreplace(p, (char *)value,
     "\\", "\\\\",
     "*", "\\*",
     "(", "\\(",
