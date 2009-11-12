@@ -342,6 +342,9 @@ static int pr_ldap_connect(LDAP **conn_ld, int do_bind) {
 
         if (url->lud_scope != LDAP_SCOPE_DEFAULT) {
           ldap_search_scope = url->lud_scope;
+          if (ldap_search_scope == LDAP_SCOPE_BASE) {
+            pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": WARNING: LDAP URL search scopes default to 'base' (not 'sub') and may not be what you want.");
+          }
         }
 
         ldap_free_urldesc(url);
