@@ -178,7 +178,7 @@ static int ldap_use_tls = 0;
 #endif
 
 static LDAP *ld = NULL;
-array_header *cached_quota = NULL;
+static array_header *cached_quota = NULL;
 
 
 static void
@@ -1930,6 +1930,7 @@ MODRET
 set_ldap_usessl(cmd_rec *cmd)
 {
   pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": LDAPUseSSL did not have the intended effect and has been removed. Please remove this directive from your configuration, as it will be removed in future versions of mod_ldap and ProFTPD will fail to start.");
+  return PR_HANDLED(cmd);
 }
 
 MODRET
