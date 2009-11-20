@@ -75,7 +75,19 @@
 #include <lber.h>
 #include <ldap.h>
 
+#if LDAP_API_VERSION >= 2000
+# define HAS_LDAP_SASL_BIND_S
+#endif
+
 #if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 192)
+# define HAS_LDAP_UNBIND_EXT_S
+#endif
+
+#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+# define HAS_LDAP_INITIALIZE
+#endif
+
+#ifdef HAS_LDAP_UNBIND_EXT_S
 # define LDAP_UNBIND(ld) (ldap_unbind_ext_s(ld, NULL, NULL))
 #else
 # define LDAP_UNBIND(ld) (ldap_unbind_s(ld))
@@ -158,9 +170,9 @@ static char *ldap_dn, *ldap_dnpass,
             *ldap_attr_cn = "cn",
             *ldap_attr_memberuid = "memberUid",
             *ldap_attr_ftpquota = "ftpQuota";
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#ifdef HAS_LDAP_INITIALIZE
 static char *ldap_server_url;
-#endif /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#endif /* HAS_LDAP_INITIALIZE */
 static int ldap_doauth = 0, ldap_douid = 0, ldap_dogid = 0, ldap_doquota = 0,
            ldap_authbinds = 1, ldap_querytimeout = 0,
            ldap_genhdir = 0, ldap_genhdir_prefix_nouname = 0,
@@ -205,11 +217,11 @@ static int
 _ldap_connect(LDAP **conn_ld, int do_bind)
 {
   int ret, version;
-#if LDAP_API_VERSION >= 2000
+#ifdef HAS_LDAP_SASL_BIND_S
   struct berval bindcred;
 #endif
 
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#ifdef HAS_LDAP_INITIALIZE
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s", ldap_server_url);
 
   ret = ldap_initialize(conn_ld, ldap_server_url);
@@ -222,7 +234,7 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
     *conn_ld = NULL;
     return -1;
   }
-#else /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
+#else /* HAS_LDAP_INITIALIZE */
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s:%d", ldap_server, ldap_port);
 
   *conn_ld = ldap_init(ldap_server, ldap_port);
@@ -230,7 +242,7 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
     pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_init() to %s:%d failed: %s", ldap_server, ldap_port, strerror(errno));
     return -1;
   }
-#endif /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
+#endif /* HAS_LDAP_INITIALIZE */
 
   version = LDAP_VERSION3;
   if (ldap_protocol_version == 2) {
@@ -245,11 +257,11 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
   }
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set protocol version to %d", version);
 
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#ifdef HAS_LDAP_INITIALIZE
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s", ldap_server_url);
-#else /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
+#else /* HAS_LDAP_INITIALIZE */
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s:%d", ldap_server, ldap_port);
-#endif /* LDAP_API_FEATURE_X_OPENLDAP && LDAP_VENDOR_VERSION >= 19905 */
+#endif /* HAS_LDAP_INITIALIZE */
 
 #ifdef LDAP_OPT_X_TLS
   if (ldap_use_tls == 1) {
@@ -264,13 +276,13 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
 #endif /* LDAP_OPT_X_TLS */
 
   if (do_bind == TRUE) {
-#if LDAP_API_VERSION >= 2000
+#ifdef HAS_LDAP_SASL_BIND_S
     bindcred.bv_val = ldap_dnpass;
     bindcred.bv_len = ldap_dnpass != NULL ? strlen(ldap_dnpass) : 0;
     ret = ldap_sasl_bind_s(*conn_ld, ldap_dn, NULL, &bindcred, NULL, NULL, NULL);
-#else /* LDAP_API_VERSION >= 2000 */
+#else /* HAS_LDAP_SASL_BIND_S */
     ret = ldap_simple_bind_s(*conn_ld, ldap_dn, ldap_dnpass);
-#endif /* LDAP_API_VERSION >= 2000 */
+#endif /* HAS_LDAP_SASL_BIND_S */
 
     if (ret != LDAP_SUCCESS) {
       pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): bind as %s failed: %s", ldap_dn, ldap_err2string(ret));
@@ -328,9 +340,9 @@ static int pr_ldap_connect(LDAP **conn_ld, int do_bind) {
           continue;
         }
 
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#ifdef HAS_LDAP_INITIALIZE
         ldap_server_url = item;
-#else /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#else /* HAS_LDAP_INITIALIZE */
         /* Need to keep parsed host and port for pre-2000 ldap_init(). */
         if (url->lud_host != NULL) {
           ldap_server = pstrdup(session.pool, url->lud_host);
@@ -338,7 +350,7 @@ static int pr_ldap_connect(LDAP **conn_ld, int do_bind) {
         if (url->lud_port != 0) {
           ldap_port = url->lud_port;
         }
-#endif /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#endif /* HAS_LDAP_INITIALIZE */
 
         if (url->lud_scope != LDAP_SCOPE_DEFAULT) {
           ldap_search_scope = url->lud_scope;
@@ -349,12 +361,12 @@ static int pr_ldap_connect(LDAP **conn_ld, int do_bind) {
 
         ldap_free_urldesc(url);
       } else {
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#ifdef HAS_LDAP_INITIALIZE
         ldap_server_url = pstrcat(session.pool, "ldap://", item, "/", NULL);
-#else /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#else /* HAS_LDAP_INITIALIZE */
         ldap_server = pstrdup(session.pool, item);
         ldap_port = LDAP_PORT;
-#endif /*  defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#endif /*  HAS_LDAP_INITIALIZE */
       }
     }
 
@@ -1159,7 +1171,7 @@ handle_ldap_check(cmd_rec *cmd)
   char *pass, *cryptpass, *hash_method;
   int encname_len, ret;
   LDAP *ld_auth;
-#if LDAP_API_VERSION >= 2000
+#ifdef HAS_LDAP_SASL_BIND_S
   struct berval bindcred;
 #endif
 
@@ -1216,14 +1228,14 @@ handle_ldap_check(cmd_rec *cmd)
       return PR_DECLINED(cmd);
     }
 
-#if LDAP_API_VERSION >= 2000
+#ifdef HAS_LDAP_SASL_BIND_S
     bindcred.bv_val = cmd->argv[2];
     bindcred.bv_len = strlen(cmd->argv[2]);
     ret = ldap_sasl_bind_s(ld_auth, ldap_authbind_dn, NULL, &bindcred,
       NULL, NULL, NULL);
-#else /* LDAP_API_VERSION >= 2000 */
+#else /* HAS_LDAP_SASL_BIND_S */
     ret = ldap_simple_bind_s(ld_auth, ldap_authbind_dn, cmd->argv[2]);
-#endif /* LDAP_API_VERSION >= 2000 */
+#endif /* HAS_LDAP_SASL_BIND_S */
 
     if (ret != LDAP_SUCCESS) {
       if (ret != LDAP_INVALID_CREDENTIALS) {
@@ -1415,17 +1427,17 @@ set_ldap_server(cmd_rec *cmd)
         CONF_ERROR(cmd, "LDAPSearchScope cannot be used when LDAPServer specifies a URL; specify a search scope in the LDAPServer URL instead.");
       }
 
-#if defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905)
+#ifdef HAS_LDAP_INITIALIZE
       if (strncasecmp(cmd->argv[i], "ldap:", strlen("ldap:")) != 0 &&
           strncasecmp(cmd->argv[i], "ldaps:", strlen("ldaps:")) != 0) {
 
         CONF_ERROR(cmd, "Invalid scheme specified by LDAPServer URL. Valid schemes are 'ldap' or 'ldaps'.");
       }
-#else /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#else /* HAS_LDAP_INITIALIZE */
       if (strncasecmp(cmd->argv[i], "ldap:", strlen("ldap:")) != 0) {
         CONF_ERROR(cmd, "Invalid scheme specified by LDAPServer URL. Valid schemes are 'ldap'.");
       }
-#endif /* defined(LDAP_API_FEATURE_X_OPENLDAP) && (LDAP_VENDOR_VERSION >= 19905) */
+#endif /* HAS_LDAP_INITIALIZE */
 
       if (url->lud_dn && strcmp(url->lud_dn, "") != 0) {
         CONF_ERROR(cmd, "A base DN may not be specified by an LDAPServer URL, only by LDAPDoAuth, LDAPDoUIDLookups, LDAPDoGIDLookups, or LDAPDoQuotaLookups.");
