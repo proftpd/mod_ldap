@@ -400,17 +400,11 @@ pr_ldap_interpolate_filter(pool *p, char *template, const char *value)
   return filter;
 }
 
-static struct passwd *
-pr_ldap_user_lookup(pool *p,
-                    char *filter_template, const char *replace,
-                    char *basedn, char *ldap_attrs[],
-                    char **user_dn)
+LDAPMessage *
+pr_ldap_search(char *basedn, char *filter, char *ldap_attrs[], int sizelimit)
 {
-  char *filter, *dn;
-  int i = 0, ret;
-  struct passwd *pw;
-  LDAPMessage *result, *e;
-  LDAP_VALUE_T **values;
+  int ret;
+  LDAPMessage *result;
 
   if (!basedn) {
     pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": no LDAP base DN specified for auth/UID lookups, declining request.");
@@ -427,37 +421,57 @@ pr_ldap_user_lookup(pool *p,
     }
   }
 
+  ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, ldap_attrs,
+    &ldap_querytimeout_tp, sizelimit, &result);
+  if (ret != LDAP_SUCCESS) {
+    if (ret == LDAP_SERVER_DOWN) {
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_search(): LDAP server went away, trying to reconnect");
+
+      if (pr_ldap_connect(&ld, TRUE) == -1) {
+        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_search(): LDAP server went away, unable to reconnect");
+        ld = NULL;
+        return NULL;
+      }
+
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_search(): Reconnect to LDAP server successful, resuming normal operations");
+
+      ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, ldap_attrs,
+        &ldap_querytimeout_tp, 2, &result);
+      if (ret != LDAP_SUCCESS) {
+        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_search(): LDAP search failed: %s", ldap_err2string(ret));
+        return NULL;
+      }
+    } else {
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_search(): LDAP search failed: %s", ldap_err2string(ret));
+      return NULL;
+    }
+  }
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched under base DN %s using filter %s", basedn, filter);
+
+  return result;
+}
+
+static struct passwd *
+pr_ldap_user_lookup(pool *p,
+                    char *filter_template, const char *replace,
+                    char *basedn, char *ldap_attrs[],
+                    char **user_dn)
+{
+  char *filter, *dn;
+  int i = 0;
+  struct passwd *pw;
+  LDAPMessage *result, *e;
+  LDAP_VALUE_T **values;
+
   filter = pr_ldap_interpolate_filter(p, filter_template, replace);
   if (!filter) {
     return NULL;
   }
 
-  ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, ldap_attrs,
-    &ldap_querytimeout_tp, 2, &result);
-  if (ret != LDAP_SUCCESS) {
-    if (ret == LDAP_SERVER_DOWN) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_user_lookup(): LDAP server went away, trying to reconnect");
-
-      if (pr_ldap_connect(&ld, TRUE) == -1) {
-        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_user_lookup(): LDAP server went away, unable to reconnect");
-        ld = NULL;
-        return NULL;
-      }
-
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_user_lookup(): Reconnect to LDAP server successful, resuming normal operations");
-
-      ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, ldap_attrs,
-        &ldap_querytimeout_tp, 2, &result);
-      if (ret != LDAP_SUCCESS) {
-        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_user_lookup(): LDAP search failed: %s", ldap_err2string(ret));
-        return NULL;
-      }
-    } else {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_user_lookup(): LDAP search failed: %s", ldap_err2string(ret));
-      return NULL;
-    }
+  result = pr_ldap_search(basedn, filter, ldap_attrs, 2);
+  if (result == NULL) {
+    return NULL;
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched using filter %s", filter);
 
   if (ldap_count_entries(ld, result) > 1) {
     pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_user_lookup(): LDAP search returned multiple entries, aborting query");
@@ -632,7 +646,7 @@ pr_ldap_group_lookup(pool *p,
                      char *ldap_attrs[])
 {
   char *filter, *dn;
-  int i = 0, value_count, value_offset, ret;
+  int i = 0, value_count, value_offset;
   struct group *gr;
   LDAPMessage *result, *e;
   LDAP_VALUE_T **values;
@@ -642,44 +656,15 @@ pr_ldap_group_lookup(pool *p,
     return NULL;
   }
 
-  /* If the LDAP connection has gone away or hasn't been established
-   * yet, attempt to establish it now.
-   */
-  if (ld == NULL) {
-    /* If we _still_ can't connect, give up and return NULL. */
-    if (pr_ldap_connect(&ld, TRUE) == -1) {
-      return NULL;
-    }
-  }
-
   filter = pr_ldap_interpolate_filter(p, filter_template, replace);
   if (!filter) {
     return NULL;
   }
 
-  ret = LDAP_SEARCH(ld, ldap_gid_basedn, ldap_search_scope, filter,
-    ldap_attrs, &ldap_querytimeout_tp, 2, &result);
-  if (ret != LDAP_SUCCESS) {
-    if (ret == LDAP_SERVER_DOWN) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_group_lookup(): LDAP server went away, trying to reconnect");
-
-      if (pr_ldap_connect(&ld, TRUE) != -1) {
-        ret = LDAP_SEARCH(ld, ldap_gid_basedn, ldap_search_scope, filter,
-          ldap_attrs, &ldap_querytimeout_tp, 2, &result);
-        if (ret != LDAP_SUCCESS) {
-          pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_group_lookup(): LDAP search failed: %s", ldap_err2string(ret));
-          return NULL;
-        }
-      } else { /* Still can't connect */
-        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_group_lookup(): LDAP server went away, unable to reconnect");
-        return NULL;
-      }
-    } else {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_group_lookup(): LDAP search failed: %s", ldap_err2string(ret));
-      return NULL;
-    }
+  result = pr_ldap_search(ldap_gid_basedn, filter, ldap_attrs, 2);
+  if (result == NULL) {
+    return NULL;
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched using filter %s", filter);
 
   e = ldap_first_entry(ld, result);
   if (!e) {
@@ -758,7 +743,6 @@ pr_ldap_quota_lookup(pool *p, char *filter_template, const char *replace,
                      char *basedn)
 {
   char *filter, *attrs[] = {ldap_attr_ftpquota, NULL};
-  int ret;
   LDAPMessage *result, *e;
   LDAP_VALUE_T **values;
 
@@ -767,47 +751,15 @@ pr_ldap_quota_lookup(pool *p, char *filter_template, const char *replace,
     return FALSE;
   }
 
-  /* If the LDAP connection has gone away or hasn't been established
-   * yet, attempt to establish it now.
-   */
-  if (ld == NULL) {
-    /* If we _still_ can't connect, give up and return NULL. */
-    if (pr_ldap_connect(&ld, TRUE) == -1) {
-      return FALSE;
-    }
-  }
-
   filter = pr_ldap_interpolate_filter(p, filter_template, replace);
   if (!filter) {
     return FALSE;
   }
 
-  ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, attrs,
-    &ldap_querytimeout_tp, 2, &result);
-  if (ret != LDAP_SUCCESS) {
-    if (ret == LDAP_SERVER_DOWN) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_quota_lookup(): LDAP server went away, trying to reconnect");
-
-      if (pr_ldap_connect(&ld, TRUE) == -1) {
-        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_quota_lookup(): LDAP server went away, unable to reconnect");
-        ld = NULL;
-        return FALSE;
-      }
-
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_quota_lookup(): Reconnect to LDAP server successful, resuming normal operations");
-
-      ret = LDAP_SEARCH(ld, basedn, ldap_search_scope, filter, attrs,
-        &ldap_querytimeout_tp, 2, &result);
-      if (ret != LDAP_SUCCESS) {
-        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_quota_lookup(): LDAP search failed: %s", ldap_err2string(ret));
-        return FALSE;
-      }
-    } else {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_quota_lookup(): LDAP search failed: %s", ldap_err2string(ret));
-      return FALSE;
-    }
+  result = pr_ldap_search(basedn, filter, attrs, 2);
+  if (result == NULL) {
+    return FALSE;
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched using filter %s", filter);
 
   if (ldap_count_entries(ld, result) > 1) {
     pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_quota_lookup(): LDAP search returned multiple entries, aborting query");
@@ -1077,45 +1029,16 @@ handle_ldap_getgroups(cmd_rec *cmd)
     goto return_groups;
   }
 
-  /* If the LDAP connection has gone away or hasn't been established
-   * yet, attempt to establish it now.
-   */
-  if (ld == NULL) {
-    /* If we _still_ can't connect, give up and decline. */
-    if (pr_ldap_connect(&ld, TRUE) == -1) {
-      goto return_groups;
-    }
-  }
-
   filter = pr_ldap_interpolate_filter(cmd->tmp_pool,
     ldap_group_member_filter, cmd->argv[0]);
   if (!filter) {
     return NULL;
   }
 
-  ret = LDAP_SEARCH(ld, ldap_gid_basedn, ldap_search_scope, filter, w,
-    &ldap_querytimeout_tp, 0, &result);
-  if (ret != LDAP_SUCCESS) {
-    if (ret == LDAP_SERVER_DOWN) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): LDAP server went away, trying to reconnect");
-
-      if (pr_ldap_connect(&ld, TRUE) != -1) {
-        ret = LDAP_SEARCH(ld, ldap_gid_basedn, ldap_search_scope, filter,
-          w, &ldap_querytimeout_tp, 0, &result);
-        if (ret != LDAP_SUCCESS) {
-          pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): LDAP search failed: %s", ldap_err2string(ret));
-          goto return_groups;
-        }
-      } else {
-        pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): LDAP server went away, unable to reconnect");
-        goto return_groups;
-      }
-    } else {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): LDAP search failed: %s", ldap_err2string(ret));
-      goto return_groups;
-    }
+  result = pr_ldap_search(ldap_gid_basedn, filter, w, 0);
+  if (result == NULL) {
+    return FALSE;
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched using filter %s", filter);
 
   if (ldap_count_entries(ld, result) == 0) {
     pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s", filter);
