@@ -1,3 +1,16 @@
+v2.8.21:
+* Implement an internal failover mechanism instead of relying on the LDAP
+  SDK's built-in failover (if any). Fixes failover regression introduced
+  in v2.8.19 when ldap_initialize() was first used.
+* Multiple LDAP URL arguments may now be passed to LDAPServer:
+
+  LDAPServer ldap://127.0.0.1/??sub ldap://172.16.0.1/??sub
+* When setting whether to dereference LDAP aliases after connecting to
+  the LDAP server, treat failure as a hard failure and refuse to continue
+  with that LDAP server. Previously, failure when specifying whether to
+  dereference aliases would be logged but the connection to that server
+  would continue.
+
 v2.8.20:
 * Prevent the use of LDAPSearchScope or LDAPUseSSL when LDAPServer specifies
   a URL. Instead, the desired search scope and SSL setting should be
