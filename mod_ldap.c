@@ -61,8 +61,8 @@
 
 #define MOD_LDAP_VERSION	"mod_ldap/2.9.0-pre"
 
-#if PROFTPD_VERSION_NUMBER < 0x0001021002
-# error MOD_LDAP_VERSION " requires ProFTPD 1.2.10rc2 or later"
+#if PROFTPD_VERSION_NUMBER < 0x0001030103
+# error MOD_LDAP_VERSION " requires ProFTPD 1.3.1rc3 or later"
 #endif
 
 #if defined(HAVE_CRYPT_H) && !defined(AIX4) && !defined(AIX5)
@@ -1141,15 +1141,7 @@ handle_ldap_is_auth(cmd_rec *cmd)
     return PR_ERROR_INT(cmd, PR_AUTH_NOPWD);
   }
 
-  /* FIXME: If we pass a "" or NULL "crypted password" argument to
-   * auth_check, the mod_auth_unix auth handler gets called before the
-   * mod_ldap auth handler, so mod_auth_unix will allow in any LDAP
-   * auth-bind user with an incorrect password. Can we kludge around this by
-   * setting the directive to not allow empty passwords? (its name escapes
-   * me right now) For now, we'll kludge around this by passing "*", which
-   * mod_auth_unix will happily deny auth to.
-   */
-  if (pr_auth_check(cmd->tmp_pool, ldap_authbinds ? "*" : pw->pw_passwd,
+  if (pr_auth_check(cmd->tmp_pool, ldap_authbinds ? NULL : pw->pw_passwd,
                     username, cmd->argv[1]))
   {
     pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": bad password for %s", pw->pw_name);
@@ -1195,36 +1187,27 @@ handle_ldap_check(cmd_rec *cmd)
   }
 
   cryptpass = cmd->argv[0];
-  pass      = cmd->argv[2];
+  pass = cmd->argv[2];
 
 
-  if (ldap_authbinds) {
-    /* Don't try to do auth binds with a NULL DN or password.
-     *
-     * We also need to support the UserPassword directive, so don't do auth
-     * binds if we received a crypted password, which seems to indicate the
-     * use of that directive. See also the comments in pr_ldap_getpwnam().
-     *
-     * Note that handle_ldap_is_auth() will pass us "*" for a crypted
-     * password to prevent mod_auth_unix from successfully authenticating
-     * the user with an "empty" password. If we receive "*" for a crypted
-     * password, we will still check authentication. This isn't dangerous,
-     * since we bail first if we don't have a DN to authbind with.
-     */
-    if ( (pass == NULL) || (strlen(pass) == 0) ||
-         (ldap_authbind_dn == NULL) || (strlen(ldap_authbind_dn) == 0))
-    {
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": check: LDAPAuthBinds is not enabled, and couldn't fetch a password for the current user");
+  /* At this point, any encrypted password must have come from
+   * the UserPassword directive. Don't perform auth binds in this
+   * case, since the crypted password specified should override
+   * auth binds.
+   */
+  if (ldap_authbinds && cryptpass == NULL) {
+    /* Don't try to do auth binds with a NULL/empty DN or password. */
+    if ((pass == NULL) || (strlen(pass) == 0)) {
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": check: LDAPAuthBinds is enabled, but no user-supplied cleartext password was provided.");
       return PR_DECLINED(cmd);
     }
-    if (cryptpass != NULL && strlen(cryptpass) > 0 &&
-        strcmp(cryptpass, "*") != 0)
-    {
+    if ((ldap_authbind_dn == NULL) || (strlen(ldap_authbind_dn) == 0)) {
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": check: LDAPAuthBinds is enabled, but no LDAP DN was found.");
       return PR_DECLINED(cmd);
     }
 
     if (pr_ldap_connect(&ld_auth, FALSE) == -1) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": handle_ldap_check(): pr_ldap_connect() failed");
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": handle_ldap_check(): pr_ldap_connect() failed.");
       return PR_DECLINED(cmd);
     }
 
