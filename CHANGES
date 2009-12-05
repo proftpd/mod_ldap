@@ -1,3 +1,7 @@
+vNEXT:
+* Emit correct LDAP timeout in debug message, accounting for the default if
+  none was specified. Reported by Nikos Voutsinas <nvoutsin@noc.uoa.gr>.
+
 v2.8.21:
 * Implement an internal failover mechanism instead of relying on the LDAP
   SDK's built-in failover (if any). Fixes failover regression introduced
