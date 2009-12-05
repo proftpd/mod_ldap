@@ -306,7 +306,7 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
 
   ldap_querytimeout_tp.tv_sec = (ldap_querytimeout > 0 ? ldap_querytimeout : 5);
   ldap_querytimeout_tp.tv_usec = 0;
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set query timeout to %ds", ldap_querytimeout_tp.tv_sec);
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set query timeout to %us", (unsigned)ldap_querytimeout_tp.tv_sec);
 
   return 1;
 }
