@@ -222,11 +222,11 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
 #endif
 
 #ifdef HAS_LDAP_INITIALIZE
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s", ldap_server_url);
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s", ldap_server_url ? ldap_server_url : "(null)");
 
   ret = ldap_initialize(conn_ld, ldap_server_url);
   if (ret != LDAP_SUCCESS) {
-    pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_initialize() to %s failed: %s", ldap_server_url, ldap_err2string(ret));
+    pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_initialize() to %s failed: %s", ldap_server_url ? ldap_server_url : "(null)", ldap_err2string(ret));
     ++cur_server_index;
     if (cur_server_index >= ldap_servers->nelts) {
       cur_server_index = 0;
@@ -235,11 +235,11 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
     return -1;
   }
 #else /* HAS_LDAP_INITIALIZE */
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s:%d", ldap_server, ldap_port);
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s:%d", ldap_server ? ldap_server : "(null)", ldap_port);
 
   *conn_ld = ldap_init(ldap_server, ldap_port);
   if (!conn_ld) {
-    pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_init() to %s:%d failed: %s", ldap_server, ldap_port, strerror(errno));
+    pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): ldap_init() to %s:%d failed: %s", ldap_server ? ldap_server : "(null)", ldap_port, strerror(errno));
     return -1;
   }
 #endif /* HAS_LDAP_INITIALIZE */
@@ -258,9 +258,9 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": set protocol version to %d", version);
 
 #ifdef HAS_LDAP_INITIALIZE
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s", ldap_server_url);
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s", ldap_server_url ? ldap_server_url : "(null)");
 #else /* HAS_LDAP_INITIALIZE */
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s:%d", ldap_server, ldap_port);
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": connected to %s:%d", ldap_server ? ldap_server : "(null)", ldap_port);
 #endif /* HAS_LDAP_INITIALIZE */
 
 #ifdef LDAP_OPT_X_TLS
@@ -285,11 +285,11 @@ _ldap_connect(LDAP **conn_ld, int do_bind)
 #endif /* HAS_LDAP_SASL_BIND_S */
 
     if (ret != LDAP_SUCCESS) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): bind as %s failed: %s", ldap_dn, ldap_err2string(ret));
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): bind as %s failed: %s", ldap_dn ? ldap_dn : "(anonymous)", ldap_err2string(ret));
       pr_ldap_unbind();
       return -1;
     }
-    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": successfully bound as %s with password %s", ldap_dn, ldap_dnpass);
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": successfully bound as %s with password %s", ldap_dn ? ldap_dn : "(anonymous)", ldap_dnpass ? ldap_dnpass : "(none)");
   }
 
 #ifdef LDAP_OPT_DEREF
@@ -1073,7 +1073,7 @@ handle_ldap_getgroups(cmd_rec *cmd)
       *((gid_t *) push_array(gids)) =
         strtoul(LDAP_VALUE(gidNumber, 0), (char **)NULL, 10);
       *((char **) push_array(groups)) = pstrdup(session.pool, LDAP_VALUE(cn, 0));
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": added user %s secondary group %s/%s", pw->pw_name, LDAP_VALUE(cn, 0), LDAP_VALUE(gidNumber, 0));
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": added user %s secondary group %s/%s", pw->pw_name ? pw->pw_name : cmd->argv[0], LDAP_VALUE(cn, 0), LDAP_VALUE(gidNumber, 0));
     }
 
     LDAP_VALUE_FREE(gidNumber);

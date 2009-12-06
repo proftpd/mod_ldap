@@ -1,6 +1,8 @@
 vNEXT:
 * Emit correct LDAP timeout in debug message, accounting for the default if
   none was specified. Reported by Nikos Voutsinas <nvoutsin@noc.uoa.gr>.
+* Fix segfaults in debug logging on platforms whose printf() does not
+  gracefully handle NULL string pointers. (Bug #3346)
 
 v2.8.21:
 * Implement an internal failover mechanism instead of relying on the LDAP
