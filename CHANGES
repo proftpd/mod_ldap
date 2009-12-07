@@ -3,6 +3,10 @@ vNEXT:
   none was specified. Reported by Nikos Voutsinas <nvoutsin@noc.uoa.gr>.
 * Fix segfaults in debug logging on platforms whose printf() does not
   gracefully handle NULL string pointers. (Bug #3346)
+* Add support for quota profiles. If a user entry doesn't have an ftpQuota
+  attribute, search for the DN contained in the user's ftpQuotaProfileDN
+  attribute (if present) and use the ftpQuota attribute present on that DN.
+  (Bug #2617)
 
 v2.8.21:
 * Implement an internal failover mechanism instead of relying on the LDAP

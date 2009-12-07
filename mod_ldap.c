@@ -169,7 +169,8 @@ static char *ldap_dn, *ldap_dnpass,
             *ldap_attr_loginshell = "loginShell",
             *ldap_attr_cn = "cn",
             *ldap_attr_memberuid = "memberUid",
-            *ldap_attr_ftpquota = "ftpQuota";
+            *ldap_attr_ftpquota = "ftpQuota",
+            *ldap_attr_ftpquota_profiledn = "ftpQuotaProfileDN";
 #ifdef HAS_LDAP_INITIALIZE
 static char *ldap_server_url;
 #endif /* HAS_LDAP_INITIALIZE */
@@ -458,7 +459,7 @@ pr_ldap_search(char *basedn, char *filter, char *ldap_attrs[], int sizelimit)
       return NULL;
     }
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched under base DN %s using filter %s", basedn, filter);
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": searched under base DN %s using filter %s", basedn, filter ? filter : "(null)");
 
   return result;
 }
@@ -754,7 +755,9 @@ static unsigned char
 pr_ldap_quota_lookup(pool *p, char *filter_template, const char *replace,
                      char *basedn)
 {
-  char *filter, *attrs[] = {ldap_attr_ftpquota, NULL};
+  char *filter = NULL,
+       *attrs[] = {ldap_attr_ftpquota, ldap_attr_ftpquota_profiledn, NULL};
+  int orig_scope, ret;
   LDAPMessage *result, *e;
   LDAP_VALUE_T **values;
 
@@ -763,9 +766,11 @@ pr_ldap_quota_lookup(pool *p, char *filter_template, const char *replace,
     return FALSE;
   }
 
-  filter = pr_ldap_interpolate_filter(p, filter_template, replace);
-  if (!filter) {
-    return FALSE;
+  if (filter_template) {
+    filter = pr_ldap_interpolate_filter(p, filter_template, replace);
+    if (!filter) {
+      return FALSE;
+    }
   }
 
   result = pr_ldap_search(basedn, filter, attrs, 2);
@@ -786,34 +791,63 @@ pr_ldap_quota_lookup(pool *p, char *filter_template, const char *replace,
   e = ldap_first_entry(ld, result);
   if (!e) {
     ldap_msgfree(result);
-    if (ldap_default_quota != NULL) {
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s, using default quota %s", filter, ldap_default_quota);
-      parse_quota(p, replace, pstrdup(p, ldap_default_quota));
-      return TRUE;
-    } else {
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s, and no default quota defined", filter);
+    if (ldap_default_quota == NULL) {
+      if (!filter) {
+        pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for DN %s, and no default quota defined", basedn);
+      } else {
+        pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s, and no default quota defined", filter);
+      }
+      return FALSE;
     }
-    return FALSE; /* No LDAP entries for this user. */
+
+    if (!filter) {
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for DN %s, using default quota %s", basedn, ldap_default_quota);
+    } else {
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no entries for filter %s, using default quota %s", filter ? filter : "(null)", ldap_default_quota);
+    }
+    parse_quota(p, replace, pstrdup(p, ldap_default_quota));
+    return TRUE;
   }
 
   values = LDAP_GET_VALUES(ld, e, attrs[0]);
-  if (!values) {
+  if (values) {
+    parse_quota(p, replace, pstrdup(p, LDAP_VALUE(values, 0)));
+    LDAP_VALUE_FREE(values);
     ldap_msgfree(result);
-    if (ldap_default_quota != NULL) {
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no %s attribute, using default quota %s", attrs[0], ldap_default_quota);
-      parse_quota(p, replace, pstrdup(p, ldap_default_quota));
-      return TRUE;
-    } else {
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no %s attribute, and no default quota defined", attrs[0]);
-    }
-    return FALSE; /* No quota attr for this user. */
+    return TRUE;
   }
 
-  parse_quota(p, replace, pstrdup(p, LDAP_VALUE(values, 0)));
-  LDAP_VALUE_FREE(values);
-  ldap_msgfree(result);
+  if (!filter) {
+    if (ldap_default_quota == NULL) {
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": referenced DN %s does not have an ftpQuota attribute, and no default quota defined", basedn);
+      return FALSE;
+    }
 
-  return TRUE;
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no ftpQuota attr for DN %s, using default quota %s", basedn, ldap_default_quota);
+    parse_quota(p, replace, pstrdup(p, ldap_default_quota));
+    return TRUE;
+  }
+
+  values = LDAP_GET_VALUES(ld, e, attrs[1]);
+  if (values) {
+    orig_scope = ldap_search_scope;
+    ldap_search_scope = LDAP_SCOPE_BASE;
+    ret = pr_ldap_quota_lookup(p, NULL, replace, LDAP_VALUE(values, 0));
+    ldap_search_scope = orig_scope;
+    LDAP_VALUE_FREE(values);
+    ldap_msgfree(result);
+    return ret;
+  }
+
+  ldap_msgfree(result);
+  if (ldap_default_quota != NULL) {
+    pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no %s or %s attribute, using default quota %s", attrs[0], attrs[1], ldap_default_quota);
+    parse_quota(p, replace, pstrdup(p, ldap_default_quota));
+    return TRUE;
+  }
+
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": no %s or %s attribute, and no default quota defined", attrs[0], attrs[1]);
+  return FALSE; /* No quota attrs for this user. */
 }
 
 static struct group *
@@ -1887,7 +1921,8 @@ set_ldap_attr(cmd_rec *cmd)
       strcasecmp(cmd->argv[1], "loginShell") != 0 &&
       strcasecmp(cmd->argv[1], "cn") != 0 &&
       strcasecmp(cmd->argv[1], "memberUid") != 0 &&
-      strcasecmp(cmd->argv[1], "ftpQuota") != 0)
+      strcasecmp(cmd->argv[1], "ftpQuota") != 0 &&
+      strcasecmp(cmd->argv[1], "ftpQuotaProfileDN") != 0)
   {
     CONF_ERROR(cmd, "LDAPAttr: unknown attribute name.");
   }
@@ -1926,6 +1961,8 @@ ldap_getconf(void)
         ldap_attr_memberuid = pstrdup(session.pool, c->argv[1]);
       } else if (strcasecmp(c->argv[0], "ftpQuota") == 0) {
         ldap_attr_ftpquota = pstrdup(session.pool, c->argv[1]);
+      } else if (strcasecmp(c->argv[0], "ftpQuotaProfileDN") == 0) {
+        ldap_attr_ftpquota_profiledn = pstrdup(session.pool, c->argv[1]);
       }
     } while ((c = find_config_next(c, c->next, CONF_PARAM, "LDAPAttr", FALSE)));
   }
