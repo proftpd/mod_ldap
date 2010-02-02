@@ -1,12 +1,31 @@
-vNEXT:
-* Emit correct LDAP timeout in debug message, accounting for the default if
-  none was specified. Reported by Nikos Voutsinas <nvoutsin@noc.uoa.gr>.
-* Fix segfaults in debug logging on platforms whose printf() does not
-  gracefully handle NULL string pointers. (Bug #3346)
+v2.8.22:
+* Disable the LDAPUseSSL directive, instead logging a warning so existing
+  configurations do not cause ProFTPD startup failure. Previous versions
+  enabled TLS when this directive was enabled. This behavior was incorrect,
+  since the intended behavior was to enable LDAPS/LDAP over SSL. To use
+  LDAPS, specify the ldaps:// protocol in the LDAPServerURL URL(s).
+
+  If you wish to continue using TLS, you must modify your configuration to
+  specify the ldap:// scheme in the LDAPServerURL URL and add the directive
+  'LDAPUseTLS on' to your configuration.
 * Add support for quota profiles. If a user entry doesn't have an ftpQuota
   attribute, search for the DN contained in the user's ftpQuotaProfileDN
   attribute (if present) and use the ftpQuota attribute present on that DN.
   (Bug #2617)
+* Fix segfaults in debug logging on platforms whose printf() does not
+  gracefully handle NULL string pointers. (Bug #3346)
+* Escape LDAP filter metacharacters in inserted values when interpolating
+  filter templates.
+* Emit a debug warning when an LDAP URL is specified without an explicit
+  search scope.
+* Bug 2922 locks authentication for an account to the same module that
+  fetched the original account information. Remove the kludge wherein
+  "*" is passed to pr_auth_check() if we're doing auth binds to prevent
+  other modules from processing authentication. This has the convenient
+  side effect of making the UserPassword directive work with LDAP-sourced
+  accounts. Bump the required ProFTPD version to 1.3.1rc3. 
+* Emit correct LDAP timeout in debug message, accounting for the default if
+  none was specified. Reported by Nikos Voutsinas <nvoutsin@noc.uoa.gr>.
 
 v2.8.21:
 * Implement an internal failover mechanism instead of relying on the LDAP
