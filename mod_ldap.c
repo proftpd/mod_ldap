@@ -1042,7 +1042,6 @@ MODRET
 handle_ldap_getgroups(cmd_rec *cmd)
 {
   char *filter, *w[] = {ldap_attr_gidnumber, ldap_attr_cn, NULL};
-  int ret;
   struct passwd *pw;
   struct group *gr;
   LDAPMessage *result = NULL, *e;
@@ -1094,12 +1093,12 @@ handle_ldap_getgroups(cmd_rec *cmd)
   for (e = ldap_first_entry(ld, result); e; e = ldap_next_entry(ld, e)) {
     gidNumber = LDAP_GET_VALUES(ld, e, w[0]);
     if (!gidNumber) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): couldn't get values for %s attr, skipping current group: %s", ldap_err2string(ret), ldap_attr_gidnumber);
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): couldn't get values for %s attr, skipping current group.", ldap_attr_gidnumber);
       continue;
     }
     cn = LDAP_GET_VALUES(ld, e, w[1]);
     if (!cn) {
-      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): couldn't get values for %s attr, skipping current group: %s", ldap_err2string(ret), ldap_attr_cn);
+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": ldap_handle_getgroups(): couldn't get values for %s attr, skipping current group.", ldap_attr_cn);
       continue;
     }
 
