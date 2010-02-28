@@ -747,10 +747,10 @@ parse_quota(pool *p, const char *replace, char *str)
   elts[0] = pstrdup(session.pool, replace);
   cached_quota->nelts = 1;
 
+  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": parsing quota %s", str);
   while ((token = strsep(&str, ","))) {
     *((char **)push_array(cached_quota)) = pstrdup(session.pool, token);
   }
-  pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": parsed quota %s", str);
 }
 
 static unsigned char
