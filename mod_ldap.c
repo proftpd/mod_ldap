@@ -1184,7 +1184,7 @@ handle_ldap_getgroups(cmd_rec *cmd)
       *((gid_t *) push_array(gids)) =
         strtoul(LDAP_VALUE(gidNumber, 0), (char **)NULL, 10);
       *((char **) push_array(groups)) = pstrdup(session.pool, LDAP_VALUE(cn, 0));
-      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": added user %s secondary group %s/%s", pw->pw_name ? pw->pw_name : cmd->argv[0], LDAP_VALUE(cn, 0), LDAP_VALUE(gidNumber, 0));
+      pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": added user %s secondary group %s/%s", (pw && pw->pw_name) ? pw->pw_name : cmd->argv[0], LDAP_VALUE(cn, 0), LDAP_VALUE(gidNumber, 0));
     }
 
     LDAP_VALUE_FREE(gidNumber);
