@@ -415,7 +415,7 @@ pr_ldap_interpolate_filter(pool *p, char *template, const char *value)
   return filter;
 }
 
-LDAPMessage *
+static LDAPMessage *
 pr_ldap_search(char *basedn, char *filter, char *ldap_attrs[], int sizelimit)
 {
   int ret;
