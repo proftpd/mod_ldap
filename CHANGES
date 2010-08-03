@@ -1,5 +1,7 @@
 v2.8.23:
 * Add support needed by mod_sftp_ldap for fetching user public keys.
+* Bad LDAP lookup can cause mod_ldap segfault under some conditions.
+  (Bug #3424)
 
 v2.8.22:
 * Disable the LDAPUseSSL directive, instead logging a warning so existing
