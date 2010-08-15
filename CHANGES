@@ -1,3 +1,38 @@
+v2.9.0:
+- Overhaul configuration directives, hopefully yielding a more
+  straightforward, easier way to configure mod_ldap. 
+
+  The LDAPDoAuth and LDAPDoUIDLookups directives have been combined into the
+  new LDAPUsers directive. The third argument to LDAPDoUIDLookups (the UID
+  filter template) is now the third argument to LDAPUsers.
+
+  LDAPDoGIDLookups is now LDAPGroups.
+
+  LDAPDoQuotaLookups is now LDAPQuotas.
+
+  Also, the on/off booleans on these directives have been removed. Now, if
+  the directive is present, the corresponding functionality will be enabled.
+
+  For example, the previous configuration:
+
+	LDAPDoAuth on ou=people,dc=horde,dc=net (uid=%u)
+	LDAPDoUIDLookups on ou=people,dc=horde,dc=net (uidNumber=%u)
+    LDAPDoGIDLookups on ou=groups,dc=horde,dc=net
+	LDAPDoQuotaLookups on ou=people,dc=horde,dc=net (uid=%u) false,hard,10485760,0,0,0,0,0
+
+  becomes:
+
+	LDAPUsers ou=people,dc=horde,dc=net (uid=%u) (uidNumber=%u)
+    LDAPGroups ou=groups,dc=horde,dc=net
+	LDAPQuotas ou=people,dc=horde,dc=net (uid=%u) false,hard,10485760,0,0,0,0,0
+
+- Remove OpenSSL local verification of password hashes; 'LDAPAuthBinds on'
+  should do exactly the same thing in a more secure and standard way.
+- Remove deprecated LDAPNegativeCache and LDAPUseSSL directives.
+- Add group members to debug output.
+- Various internal improvements to comments, log/debug messages, style, and
+  logic.
+
 v2.8.23:
 * Add support needed by mod_sftp_ldap for fetching user public keys.
 * Bad LDAP lookup can cause mod_ldap segfault under some conditions.
