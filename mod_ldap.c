@@ -1848,13 +1848,13 @@ set_ldap_grouplookups(cmd_rec *cmd)
   c = add_config_param(cmd->argv[0], cmd->argc - 1, NULL);
   c->argv[0] = pstrdup(c->pool, cmd->argv[1]);
   if (cmd->argc > 2) {
-    c->argv[2] = pstrdup(c->pool, cmd->argv[2]);
+    c->argv[1] = pstrdup(c->pool, cmd->argv[2]);
   }
   if (cmd->argc > 3) {
-    c->argv[3] = pstrdup(c->pool, cmd->argv[3]);
+    c->argv[2] = pstrdup(c->pool, cmd->argv[3]);
   }
   if (cmd->argc > 4) {
-    c->argv[4] = pstrdup(c->pool, cmd->argv[4]);
+    c->argv[3] = pstrdup(c->pool, cmd->argv[4]);
   }
 
   return PR_HANDLED(cmd);
