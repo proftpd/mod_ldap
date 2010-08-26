@@ -8,7 +8,8 @@ v2.9.0:
 
   LDAPDoGIDLookups is now LDAPGroups.
 
-  LDAPDoQuotaLookups is now LDAPQuotas.
+  LDAPDoQuotaLookups is now obsolete. The default quota can be specified
+  with the new LDAPDefaultQuota directive.
 
   Also, the on/off booleans on these directives have been removed. Now, if
   the directive is present, the corresponding functionality will be enabled.
@@ -24,7 +25,7 @@ v2.9.0:
 
 	LDAPUsers ou=people,dc=horde,dc=net (uid=%u) (uidNumber=%u)
     LDAPGroups ou=groups,dc=horde,dc=net
-	LDAPQuotas ou=people,dc=horde,dc=net (uid=%u) false,hard,10485760,0,0,0,0,0
+	LDAPDefaultQuota false,hard,10485760,0,0,0,0,0
 
 - Remove OpenSSL local verification of password hashes; 'LDAPAuthBinds on'
   should do exactly the same thing in a more secure and standard way.
