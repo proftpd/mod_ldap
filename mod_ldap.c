@@ -1572,6 +1572,12 @@ set_ldap_searchscope(cmd_rec *cmd)
     CONF_ERROR(cmd, "LDAPSearchScope cannot be used when LDAPServer specifies a URL; specify a search scope in the LDAPServer URL instead.");
   }
 
+    if (strcasecmp(cmd->argv[1], "base") != 0 &&
+        strcasecmp(cmd->argv[1], "onelevel") != 0 &&
+        strcasecmp(cmd->argv[1], "subtree") != 0) {
+      CONF_ERROR(cmd, "LDAPSearchScope: invalid search scope.")
+    }
+
   add_config_param_str(cmd->argv[0], 1, cmd->argv[1]);
   return PR_HANDLED(cmd);
 }
@@ -1908,7 +1914,9 @@ ldap_getconf(void)
 
   scope = get_param_ptr(main_server->conf, "LDAPSearchScope", FALSE);
   if (scope) {
-    if (strcasecmp(scope, "onelevel") == 0) {
+    if (strcasecmp(scope, "base") == 0) {
+      ldap_search_scope = LDAP_SCOPE_BASE;
+    } else if (strcasecmp(scope, "onelevel") == 0) {
       ldap_search_scope = LDAP_SCOPE_ONELEVEL;
     } else if (strcasecmp(scope, "subtree") == 0) {
       ldap_search_scope = LDAP_SCOPE_SUBTREE;
