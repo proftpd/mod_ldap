@@ -21,10 +21,7 @@
  * source code for OpenSSL in the source distribution.
  */
 
-/*
- * mod_ldap v2.9.0-20100826
- *
- * Thanks for patches go to (in alphabetical order):
+/* Thanks for patches go to (in alphabetical order):
  *
  * Peter Fabian (fabian at staff dot matavnet dot hu) - LDAPAuthBinds
  * Alexandre Francois (alexandre-francois at voila dot fr) - LDAPAliasDereference
@@ -55,7 +52,7 @@
 #include "conf.h"
 #include "privs.h"
 
-#define MOD_LDAP_VERSION	"mod_ldap/2.9.0-20100826"
+#define MOD_LDAP_VERSION	"mod_ldap/2.9.0"
 
 #if PROFTPD_VERSION_NUMBER < 0x0001030103
 # error MOD_LDAP_VERSION " requires ProFTPD 1.3.1rc3 or later"
