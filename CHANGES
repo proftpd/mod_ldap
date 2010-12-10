@@ -1,3 +1,6 @@
+v2.9.1:
+- Handle potential NULL return value from crypt(). (Bug #3551)
+
 v2.9.0:
 - Overhaul configuration directives, hopefully yielding a more
   straightforward, easier way to configure mod_ldap. 
