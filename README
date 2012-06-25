@@ -59,6 +59,10 @@ code improvements or ideas for development, please let me know!
 ==========
 3. Changes
 ==========
+UNRELEASED:
+- Fixed swapped DN/attr name interpolation in 'no attr for' error messages.
+  (Bug #3776)
+
 v2.9.2:
 - Prevent segmentation fault when no user filters (second and third
   arguments to LDAPUsers) are specified.
