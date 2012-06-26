@@ -50,7 +50,7 @@ code improvements or ideas for development, please let me know!
 
     LDAPServer localhost
     LDAPBindDN cn=your-dn,dc=example,dc=com dnpass
-    LDAPUsers "dc=users,dc=example,dc=com"
+    LDAPUsers dc=users,dc=example,dc=com
 
   Or, if your users are in a Microsoft Active Directory:
 
@@ -58,7 +58,7 @@ code improvements or ideas for development, please let me know!
     LDAPUseTLS on
     LDAPBindDN "cn=SRV_FTP_AUTH,ou=special accounts,dc=example,dc=com" dnpass
 
-    LDAPUsers ou=Users,dc=example,dc=org "(&(sAMAccountName=%u)(objectclass=user))"
+    LDAPUsers ou=Users,dc=example,dc=org (&(sAMAccountName=%u)(objectclass=user))
     LDAPAttr uid sAMAccountName
     LDAPAttr gidNumber primaryGroupID
     LDAPDefaultUID 65534
