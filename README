@@ -52,6 +52,22 @@ code improvements or ideas for development, please let me know!
     LDAPBindDN cn=your-dn,dc=example,dc=com dnpass
     LDAPUsers "dc=users,dc=example,dc=com"
 
+  Or, if your users are in a Microsoft Active Directory:
+
+    LDAPServer dc.example.com:3268
+    LDAPUseTLS on
+    LDAPBindDN "cn=SRV_FTP_AUTH,ou=special accounts,dc=example,dc=com" dnpass
+
+    LDAPUsers ou=Users,dc=example,dc=org "(&(sAMAccountName=%u)(objectclass=user))"
+    LDAPAttr uid sAMAccountName
+    LDAPAttr gidNumber primaryGroupID
+    LDAPDefaultUID 65534
+    LDAPDefaultGID 65534
+
+    CreateHome on
+    LDAPGenerateHomedir on
+    LDAPGenerateHomedirPrefix /home
+
   Of course, you will need to update these configuration directives with
   the proper values for your environment.
 
