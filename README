@@ -62,6 +62,8 @@ code improvements or ideas for development, please let me know!
 UNRELEASED:
 - Fixed swapped DN/attr name interpolation in 'no attr for' error messages.
   (Bug #3776)
+- %u is now interpolated in the LDAPDoQuotaLookups base DN, not just its
+  search filter template. (Bug #3789)
 
 v2.9.2:
 - Prevent segmentation fault when no user filters (second and third

@@ -987,11 +987,19 @@ pr_ldap_getpwuid(pool *p, uid_t uid)
 MODRET
 handle_ldap_quota_lookup(cmd_rec *cmd)
 {
+  char *basedn;
+
+  basedn = pr_ldap_interpolate_basedn(cmd->tmp_pool,
+    ldap_user_basedn, cmd->argv[0]);
+  if (!basedn) {
+    return PR_DECLINED(cmd);
+  }
+
   if (cached_quota == NULL ||
       strcasecmp(((char **)cached_quota->elts)[0], cmd->argv[0]) != 0)
   {
     if (pr_ldap_quota_lookup(cmd->tmp_pool, ldap_user_name_filter,
-                             cmd->argv[0], ldap_user_basedn) == FALSE)
+                             cmd->argv[0], basedn) == FALSE)
     {
       return PR_DECLINED(cmd);
     }
