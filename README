@@ -52,7 +52,8 @@ code improvements or ideas for development, please let me know!
     LDAPBindDN cn=your-dn,dc=example,dc=com dnpass
     LDAPUsers dc=users,dc=example,dc=com
 
-  Or, if your users are in a Microsoft Active Directory:
+  Or, if your users are in a Microsoft Active Directory (note that mod_ldap
+  doesn't currently support Active Directory supplemental group memberships):
 
     LDAPServer dc.example.com:3268
     LDAPUseTLS on
