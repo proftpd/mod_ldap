@@ -64,6 +64,7 @@ code improvements or ideas for development, please let me know!
     LDAPAttr gidNumber primaryGroupID
     LDAPDefaultUID 65534
     LDAPDefaultGID 65534
+    RequireValidShell off
 
     CreateHome on
     LDAPGenerateHomedir on
