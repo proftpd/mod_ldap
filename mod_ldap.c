@@ -989,7 +989,7 @@ handle_ldap_quota_lookup(cmd_rec *cmd)
 {
   char *basedn;
 
-  basedn = pr_ldap_interpolate_basedn(cmd->tmp_pool,
+  basedn = pr_ldap_interpolate_filter(cmd->tmp_pool,
     ldap_user_basedn, cmd->argv[0]);
   if (!basedn) {
     return PR_DECLINED(cmd);
