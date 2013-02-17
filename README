@@ -82,6 +82,8 @@ UNRELEASED:
   (Bug #3776)
 - %u is now interpolated in the LDAPDoQuotaLookups base DN, not just its
   search filter template. (Bug #3789)
+- Fail explicitly when on/off is specified as the first argument to
+  LDAPUsers or LDAPGroups.
 
 v2.9.2:
 - Prevent segmentation fault when no user filters (second and third
