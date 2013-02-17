@@ -84,6 +84,8 @@ UNRELEASED:
   search filter template. (Bug #3789)
 - Fail explicitly when on/off is specified as the first argument to
   LDAPUsers or LDAPGroups.
+- Don't emit the bind DN password in debug output when the bind is
+  successful.
 
 v2.9.2:
 - Prevent segmentation fault when no user filters (second and third
