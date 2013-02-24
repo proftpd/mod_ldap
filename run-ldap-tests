@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# This wrapper script runs mod_ldap's tests. Run it from the tests
+# subdirectory of the ProFTPD source (tests.pl and mod_ldap.t are
+# shipped with ProFTPD's test suite).
+
+# The mod_ldap test suite needs to create various user and group entries
+# under LDAP_USER_BASE, which must exist beforehand. For example:
+#
+# dn: dc=proftpdtest,dc=example,dc=com
+# objectClass: dcObject
+# objectClass: organization
+# o: proftpdtest
+# dc: proftpdtest
+
+# Parts of the test suite need to run as root to test different
+# UID/GID configuration settings.
+sudo env LDAP_BIND_DN=cn=admin,dc=example,dc=com LDAP_BIND_PASS=example \
+	LDAP_USER_BASE=dc=proftpdtest,dc=example,dc=com \
+	perl tests.pl "$@" -K ./t/modules/mod_ldap.t
