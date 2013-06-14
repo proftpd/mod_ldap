@@ -1017,7 +1017,7 @@ handle_ldap_ssh_pubkey_lookup(cmd_rec *cmd)
     return PR_DECLINED(cmd);
   }
 
-  if (cached_ssh_pubkeys != NULL ||
+  if (cached_ssh_pubkeys != NULL &&
       strcasecmp(((char **)cached_ssh_pubkeys->elts)[0], cmd->argv[0]) == 0) {
 
     pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": returning cached SSH public keys for %s", cmd->argv[0]);
